@@ -560,7 +560,7 @@ export default function TrackPage() {
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: 6 }}>
-                        <div onClick={() => { startEdit(d); setActiveTab('registro'); }} style={{ width: 28, height: 28, borderRadius: 8, background: HU.cream, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                        <div onClick={() => startEdit(d)} style={{ width: 28, height: 28, borderRadius: 8, background: HU.cream, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                           <Icon name="settings" size={12} color={HU.ink} />
                         </div>
                         <div onClick={() => setConfirmDeleteId(d.id)} style={{ width: 28, height: 28, borderRadius: 8, background: `${HU.coral}12`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
@@ -598,8 +598,37 @@ export default function TrackPage() {
                     )}
 
                     {/* Notes */}
-                    {d.notes && (
+                    {d.notes && editingId !== d.id && (
                       <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: HU.cream, fontFamily: HU.sans, fontSize: 12, color: HU.mute, lineHeight: 1.4 }}>{d.notes}</div>
+                    )}
+
+                    {/* Inline edit form */}
+                    {editingId === d.id && (
+                      <div style={{ marginTop: 10, padding: 14, borderRadius: 14, background: HU.cream, border: `2px solid ${HU.sun}` }}>
+                        <div style={{ fontFamily: HU.sans, fontSize: 13, fontWeight: 600, color: HU.ink, marginBottom: 10 }}>Editar registro</div>
+                        <div style={{ marginBottom: 10 }}>
+                          <div style={{ fontFamily: HU.sans, fontSize: 11, fontWeight: 600, color: HU.ink, marginBottom: 4, textTransform: 'uppercase', letterSpacing: .4 }}>Dosis (Unidades)</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <input type="range" min={0} max={100} value={editUnits} onChange={e => setEditUnits(+e.target.value)} style={{ flex: 1, accentColor: HU.ink }} />
+                            <div style={{ fontFamily: HU.display, fontSize: 22, fontWeight: 500, color: HU.ink, minWidth: 50, textAlign: 'right' }}>{editUnits}u</div>
+                          </div>
+                          {currentOrder && <div style={{ fontFamily: HU.mono, fontSize: 10, color: HU.mute, marginTop: 2 }}>= {calcMgForUnits(currentOrder, editUnits)} mg</div>}
+                        </div>
+                        <div style={{ marginBottom: 10 }}>
+                          <div style={{ fontFamily: HU.sans, fontSize: 11, fontWeight: 600, color: HU.ink, marginBottom: 4, textTransform: 'uppercase', letterSpacing: .4 }}>Peso (lbs)</div>
+                          <input type="number" step="0.1" value={editWeight} onChange={e => setEditWeight(e.target.value)} placeholder="Peso en lbs"
+                            style={{ height: 42, padding: '0 12px', borderRadius: 10, border: `1px solid ${HU.line}`, background: HU.paper, fontFamily: HU.sans, fontSize: 14, color: HU.ink, outline: 'none', width: '100%' }} />
+                        </div>
+                        <div style={{ marginBottom: 12 }}>
+                          <div style={{ fontFamily: HU.sans, fontSize: 11, fontWeight: 600, color: HU.ink, marginBottom: 4, textTransform: 'uppercase', letterSpacing: .4 }}>Observaciones</div>
+                          <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} rows={2}
+                            style={{ padding: '10px 12px', borderRadius: 10, border: `1px solid ${HU.line}`, background: HU.paper, fontFamily: HU.sans, fontSize: 14, color: HU.ink, outline: 'none', width: '100%', resize: 'none' as const }} />
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <Btn variant="secondary" size="sm" onClick={() => setEditingId(null)} style={{ flex: 1 }}>Cancelar</Btn>
+                          <Btn variant="leaf" size="sm" icon="check" loading={savingEdit} onClick={saveEdit} style={{ flex: 1 }}>Guardar</Btn>
+                        </div>
+                      </div>
                     )}
                   </div>
                 );
