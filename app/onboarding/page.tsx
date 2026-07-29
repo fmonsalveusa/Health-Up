@@ -110,35 +110,39 @@ export default function OnboardingPage() {
         </div>
 
         <div style={{ fontFamily: HU.sans, fontSize: 12, fontWeight: 600, color: HU.ink, marginBottom: 10, textTransform: 'uppercase', letterSpacing: .4 }}>Edad</div>
-        <div style={{ background: HU.paper, border: `1px solid ${HU.line}`, borderRadius: 20, padding: '24px 20px', marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 6 }}>
-            <div style={{ fontFamily: HU.display, fontSize: 72, fontWeight: 400, color: HU.ink, lineHeight: 1, letterSpacing: -2 }}>{age}</div>
-            <div style={{ fontFamily: HU.sans, fontSize: 14, color: HU.mute }}>años</div>
+        <div style={{ background: HU.paper, border: `1px solid ${HU.line}`, borderRadius: 20, padding: '16px 20px', marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
+            <div onClick={() => setAge(Math.max(18, age - 1))} style={{ width: 44, height: 44, borderRadius: 22, background: HU.cream, border: `1px solid ${HU.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 22, fontWeight: 600, color: HU.ink, userSelect: 'none' }}>−</div>
+            <input type="number" value={age} onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v) && v >= 18 && v <= 80) setAge(v); }}
+              style={{ width: 80, textAlign: 'center', fontFamily: HU.display, fontSize: 48, fontWeight: 400, color: HU.ink, lineHeight: 1, border: 'none', background: 'transparent', outline: 'none', MozAppearance: 'textfield', WebkitAppearance: 'none' as any }} />
+            <div onClick={() => setAge(Math.min(80, age + 1))} style={{ width: 44, height: 44, borderRadius: 22, background: HU.cream, border: `1px solid ${HU.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 22, fontWeight: 600, color: HU.ink, userSelect: 'none' }}>+</div>
           </div>
-          <input type="range" min="18" max="80" value={age} onChange={e => setAge(+e.target.value)}
-            style={{ width: '100%', marginTop: 18, accentColor: HU.ink }} />
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontFamily: HU.mono, fontSize: 10, color: HU.dim }}>
-            <span>18</span><span>80</span>
-          </div>
+          <div style={{ textAlign: 'center', fontFamily: HU.sans, fontSize: 13, color: HU.mute, marginTop: 6 }}>años</div>
         </div>
 
         <div style={{ fontFamily: HU.sans, fontSize: 12, fontWeight: 600, color: HU.ink, marginBottom: 10, textTransform: 'uppercase', letterSpacing: .4 }}>Estatura</div>
         <div style={{ background: HU.paper, border: `1px solid ${HU.line}`, borderRadius: 20, padding: '16px 20px' }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 8 }}>
-            <div style={{ fontFamily: HU.display, fontSize: 48, fontWeight: 400, color: HU.ink, lineHeight: 1 }}>{heightFt}</div>
-            <div style={{ fontFamily: HU.sans, fontSize: 14, color: HU.mute }}>ft</div>
-            <div style={{ fontFamily: HU.display, fontSize: 48, fontWeight: 400, color: HU.ink, lineHeight: 1 }}>{heightIn}</div>
-            <div style={{ fontFamily: HU.sans, fontSize: 14, color: HU.mute }}>in</div>
-          </div>
-          <div style={{ marginTop: 12 }}>
-            <div style={{ fontFamily: HU.mono, fontSize: 9, color: HU.dim, marginBottom: 4, letterSpacing: .6 }}>PIES</div>
-            <input type="range" min="4" max="7" value={heightFt} onChange={e => setHeightFt(+e.target.value)}
-              style={{ width: '100%', accentColor: HU.ink }} />
-          </div>
-          <div style={{ marginTop: 8 }}>
-            <div style={{ fontFamily: HU.mono, fontSize: 9, color: HU.dim, marginBottom: 4, letterSpacing: .6 }}>PULGADAS</div>
-            <input type="range" min="0" max="11" value={heightIn} onChange={e => setHeightIn(+e.target.value)}
-              style={{ width: '100%', accentColor: HU.ink }} />
+          <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
+            {/* Feet */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+              <div style={{ fontFamily: HU.mono, fontSize: 10, color: HU.mute, letterSpacing: .6 }}>PIES</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div onClick={() => setHeightFt(Math.max(4, heightFt - 1))} style={{ width: 36, height: 36, borderRadius: 18, background: HU.cream, border: `1px solid ${HU.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 18, fontWeight: 600, color: HU.ink, userSelect: 'none' }}>−</div>
+                <input type="number" value={heightFt} onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v) && v >= 4 && v <= 7) setHeightFt(v); }}
+                  style={{ width: 50, textAlign: 'center', fontFamily: HU.display, fontSize: 36, fontWeight: 400, color: HU.ink, border: 'none', background: 'transparent', outline: 'none', MozAppearance: 'textfield', WebkitAppearance: 'none' as any }} />
+                <div onClick={() => setHeightFt(Math.min(7, heightFt + 1))} style={{ width: 36, height: 36, borderRadius: 18, background: HU.cream, border: `1px solid ${HU.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 18, fontWeight: 600, color: HU.ink, userSelect: 'none' }}>+</div>
+              </div>
+            </div>
+            {/* Inches */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+              <div style={{ fontFamily: HU.mono, fontSize: 10, color: HU.mute, letterSpacing: .6 }}>PULGADAS</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div onClick={() => setHeightIn(Math.max(0, heightIn - 1))} style={{ width: 36, height: 36, borderRadius: 18, background: HU.cream, border: `1px solid ${HU.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 18, fontWeight: 600, color: HU.ink, userSelect: 'none' }}>−</div>
+                <input type="number" value={heightIn} onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v) && v >= 0 && v <= 11) setHeightIn(v); }}
+                  style={{ width: 50, textAlign: 'center', fontFamily: HU.display, fontSize: 36, fontWeight: 400, color: HU.ink, border: 'none', background: 'transparent', outline: 'none', MozAppearance: 'textfield', WebkitAppearance: 'none' as any }} />
+                <div onClick={() => setHeightIn(Math.min(11, heightIn + 1))} style={{ width: 36, height: 36, borderRadius: 18, background: HU.cream, border: `1px solid ${HU.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 18, fontWeight: 600, color: HU.ink, userSelect: 'none' }}>+</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -163,12 +167,15 @@ export default function OnboardingPage() {
 
           <div style={{ background: HU.paper, borderRadius: 20, padding: 20, marginBottom: 14, border: `1px solid ${HU.line}` }}>
             <div style={{ fontFamily: HU.sans, fontSize: 12, fontWeight: 600, color: HU.mute, textTransform: 'uppercase', letterSpacing: .4, marginBottom: 14 }}>Peso actual</div>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 4 }}>
-              <div style={{ fontFamily: HU.display, fontSize: 56, fontWeight: 400, color: HU.ink, lineHeight: 1, letterSpacing: -1.5 }}>{weightLbs}</div>
-              <div style={{ fontFamily: HU.sans, fontSize: 18, color: HU.mute }}>lbs</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
+              <div onClick={() => setWeightLbs(Math.max(88, weightLbs - 1))} style={{ width: 44, height: 44, borderRadius: 22, background: HU.cream, border: `1px solid ${HU.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 22, fontWeight: 600, color: HU.ink, userSelect: 'none' }}>−</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                <input type="number" value={weightLbs} onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v) && v >= 88 && v <= 500) setWeightLbs(v); }}
+                  style={{ width: 100, textAlign: 'center', fontFamily: HU.display, fontSize: 48, fontWeight: 400, color: HU.ink, border: 'none', background: 'transparent', outline: 'none', MozAppearance: 'textfield', WebkitAppearance: 'none' as any }} />
+                <div style={{ fontFamily: HU.sans, fontSize: 16, color: HU.mute }}>lbs</div>
+              </div>
+              <div onClick={() => setWeightLbs(Math.min(500, weightLbs + 1))} style={{ width: 44, height: 44, borderRadius: 22, background: HU.cream, border: `1px solid ${HU.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 22, fontWeight: 600, color: HU.ink, userSelect: 'none' }}>+</div>
             </div>
-            <input type="range" min="88" max="440" value={weightLbs} onChange={e => setWeightLbs(+e.target.value)}
-              style={{ width: '100%', marginTop: 12, accentColor: HU.ink }} />
           </div>
 
           <div style={{ background: HU.paper, borderRadius: 20, padding: 20, marginBottom: 14, border: `1px solid ${HU.line}` }}>
@@ -178,12 +185,15 @@ export default function OnboardingPage() {
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 100, background: `${HU.leaf}22`, fontFamily: HU.mono, fontSize: 10, color: HU.leafDeep, fontWeight: 600 }}>−{diffLbs} lbs</div>
               )}
             </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 4 }}>
-              <div style={{ fontFamily: HU.display, fontSize: 56, fontWeight: 400, color: HU.leaf, lineHeight: 1, letterSpacing: -1.5 }}>{targetLbs}</div>
-              <div style={{ fontFamily: HU.sans, fontSize: 18, color: HU.mute }}>lbs</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
+              <div onClick={() => setTargetLbs(Math.max(88, targetLbs - 1))} style={{ width: 44, height: 44, borderRadius: 22, background: HU.cream, border: `1px solid ${HU.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 22, fontWeight: 600, color: HU.ink, userSelect: 'none' }}>−</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                <input type="number" value={targetLbs} onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v) && v >= 88 && v <= 500) setTargetLbs(v); }}
+                  style={{ width: 100, textAlign: 'center', fontFamily: HU.display, fontSize: 48, fontWeight: 400, color: HU.leaf, border: 'none', background: 'transparent', outline: 'none', MozAppearance: 'textfield', WebkitAppearance: 'none' as any }} />
+                <div style={{ fontFamily: HU.sans, fontSize: 16, color: HU.mute }}>lbs</div>
+              </div>
+              <div onClick={() => setTargetLbs(Math.min(500, targetLbs + 1))} style={{ width: 44, height: 44, borderRadius: 22, background: HU.cream, border: `1px solid ${HU.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 22, fontWeight: 600, color: HU.ink, userSelect: 'none' }}>+</div>
             </div>
-            <input type="range" min="88" max="440" value={targetLbs} onChange={e => setTargetLbs(+e.target.value)}
-              style={{ width: '100%', marginTop: 12, accentColor: HU.leaf }} />
           </div>
 
           {diffLbs > 0 && (
