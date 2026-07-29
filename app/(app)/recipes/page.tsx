@@ -8,11 +8,10 @@ import type { Recipe } from '@/lib/types';
 
 const FILTERS = [
   { l: 'Todas', v: '' },
-  { l: '< 400 kcal', v: 'low-cal' },
-  { l: 'Alto en proteína', v: 'alto-prot' },
-  { l: 'Vegetariano', v: 'vegetariano' },
-  { l: 'Sin gluten', v: 'sin-gluten' },
-  { l: 'Rápido', v: 'rápido' },
+  { l: 'Desayuno', v: 'desayuno' },
+  { l: 'Almuerzo', v: 'almuerzo' },
+  { l: 'Cena', v: 'cena' },
+  { l: 'Snack', v: 'snack' },
 ];
 
 export default function RecipesPage() {
@@ -24,8 +23,7 @@ export default function RecipesPage() {
   useEffect(() => {
     async function load() {
       let query = supabase.from('recipes').select('*').order('title');
-      if (filter === 'low-cal') query = query.lt('kcal', 400);
-      else if (filter) query = query.contains('tags', [filter]);
+      if (filter) query = query.contains('tags', [filter]);
       const { data } = await query;
       setRecipes(data || []);
     }
