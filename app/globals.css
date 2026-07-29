@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Ocultar scrollbars en toda la app (feel nativo) */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+*::-webkit-scrollbar { display: none; }
+
+/* Safe area padding para PWA en iOS */
+body {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Suavizar transiciones de página */
+main {
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
