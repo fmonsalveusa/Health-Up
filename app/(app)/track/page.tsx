@@ -596,7 +596,7 @@ export default function TrackPage() {
             <div style={{ marginTop: 16, padding: 16, borderRadius: 18, background: `${HU.sun}15`, border: `1px solid ${HU.sun}30` }}>
               <div style={{ fontFamily: HU.sans, fontSize: 12, fontWeight: 700, color: HU.inkDeep, marginBottom: 8, textTransform: 'uppercase', letterSpacing: .4 }}>Escalado de dosis</div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                {Array.from(new Set(doseLogs.slice().reverse().map(d => d.dose_units ? `${d.dose_units}u` : `${d.dose_mg}mg`)).map((d, i, arr) => (
+                {Array.from(new Set(doseLogs.slice().reverse().map(d => d.dose_units ? `${d.dose_units}u` : `${d.dose_mg}mg`))).map((d, i, arr) => (
                   <div key={d} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <div style={{ padding: '4px 10px', borderRadius: 8, background: i === arr.length - 1 ? HU.ink : HU.paper, color: i === arr.length - 1 ? '#fff' : HU.ink, fontFamily: HU.mono, fontSize: 12, fontWeight: 600, border: `1px solid ${i === arr.length - 1 ? HU.ink : HU.line}` }}>{d}</div>
                     {i < arr.length - 1 && <Icon name="chev" size={12} color={HU.dim} />}
@@ -658,4 +658,3 @@ export default function TrackPage() {
     </div>
   );
 }
-
