@@ -6,7 +6,7 @@ import { HU } from '@/lib/design';
 import { Btn, Icon, FoodImg } from '@/components/ui';
 
 export default function AuthPage() {
-  const [mode, setMode] = useState<'login' | 'register'>('register');
+  const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -123,14 +123,15 @@ export default function AuthPage() {
           </Btn>
         </form>
 
-        <div
-          onClick={() => { setMode(mode === 'register' ? 'login' : 'register'); setError(''); }}
-          style={{ textAlign: 'center', fontFamily: HU.sans, fontSize: 13, color: HU.mute, marginTop: 16, cursor: 'pointer' }}
-        >
-          {mode === 'register' ? 'Ya tengo cuenta · ' : '¿No tienes cuenta? · '}
-          <span style={{ color: HU.ink, fontWeight: 600 }}>
-            {mode === 'register' ? 'Entrar' : 'Crear cuenta'}
-          </span>
+        <div style={{ marginTop: 14 }}>
+          <Btn
+            variant="leaf"
+            size="lg"
+            style={{ width: '100%' }}
+            onClick={() => { setMode(mode === 'register' ? 'login' : 'register'); setError(''); }}
+          >
+            {mode === 'register' ? 'Entrar' : 'Crear Usuario'}
+          </Btn>
         </div>
       </div>
     </div>
