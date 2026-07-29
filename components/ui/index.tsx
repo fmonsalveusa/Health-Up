@@ -187,9 +187,9 @@ export function Chip({ children, active = false, onClick, style = {} }: {
 // ── TabBar ───────────────────────────────────────────────────
 const TABS = [
   { k: 'home', label: 'Hoy', icon: 'home', href: '/home' },
-  { k: 'plan', label: 'Plan', icon: 'cal', href: '/plan' },
-  { k: 'recipes', label: 'Recetas', icon: 'book', href: '/recipes' },
   { k: 'track', label: 'Progreso', icon: 'chart', href: '/track' },
+  { k: 'recipes', label: 'Recetas', icon: 'book', href: '/recipes' },
+  { k: 'plan', label: 'Plan', icon: 'cal', href: '/plan' },
   { k: 'profile', label: 'Perfil', icon: 'user', href: '/profile' },
 ];
 
