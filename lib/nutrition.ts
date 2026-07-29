@@ -1,8 +1,8 @@
 import type { TDEEInput } from './types';
 
 // Conversiones
-export const kgToLbs = (kg: number) => Math.round(kg * 2.20462 * 10) / 10;
-export const lbsToKg = (lbs: number) => Math.round(lbs * 0.453592 * 10) / 10;
+export const kgToLbs = (kg: number) => Math.round(kg * 2.20462);
+export const lbsToKg = (lbs: number) => Math.round(lbs * 0.453592 * 100) / 100;
 export const cmToFtIn = (cm: number): [number, number] => {
   const totalIn = cm / 2.54;
   const ft = Math.floor(totalIn / 12);
