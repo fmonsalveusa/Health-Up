@@ -235,14 +235,41 @@ export default function TrackPage() {
   }
 
   async function saveEdit() {
-    if (!editingId || !currentOrder) return;
+    if (!editingId) return;
     setSavingEdit(true);
-    const mg = calcMgForUnits(currentOrder, editUnits);
-    await supabase.from('dose_logs').update({ dose_units: editUnits, dose_mg: mg, notes: editNotes || null }).eq('id', editingId);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setSavingEdit(false); return; }
+
+    // Calcular mg: usar currentOrder si existe, si no, guardar el valor editado directo
+    const mg = currentOrder ? calcMgForUnits(currentOrder, editUnits) : editUnits * 0.18;
+    await supabase.from('dose_logs').update({
+      dose_units: editUnits,
+      dose_mg: mg,
+      notes: editNotes || null,
+    }).eq('id', editingId);
+
+    // Actualizar peso si fue modificado
     if (editWeight) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) await supabase.from('profiles').update({ current_weight: lbsToKg(parseFloat(editWeight)), updated_at: new Date().toISOString() }).eq('id', user.id);
+      const kg = lbsToKg(parseFloat(editWeight));
+      // Buscar la fecha del dose log para actualizar el weight_log correcto
+      const dose = doseLogs.find(d => d.id === editingId);
+      if (dose) {
+        const doseDate = dose.scheduled_for || dose.taken_at?.split('T')[0];
+        if (doseDate) {
+          // Intentar actualizar el weight_log existente de ese día
+          const { data: existing } = await supabase.from('weight_logs')
+            .select('id').eq('user_id', user.id).eq('logged_at', doseDate).limit(1);
+          if (existing && existing.length > 0) {
+            await supabase.from('weight_logs').update({ weight: kg }).eq('id', existing[0].id);
+          } else {
+            await supabase.from('weight_logs').insert({ user_id: user.id, weight: kg, logged_at: doseDate });
+          }
+        }
+      }
+      // Actualizar peso actual en perfil
+      await supabase.from('profiles').update({ current_weight: kg, updated_at: new Date().toISOString() }).eq('id', user.id);
     }
+
     setEditingId(null); setSavingEdit(false); loadData();
   }
 
