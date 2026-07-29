@@ -432,9 +432,12 @@ export default function TrackPage() {
             <div style={{ padding: 18, borderRadius: 18, background: HU.paper, border: `2px solid ${HU.sun}`, marginBottom: 14 }}>
               <div style={{ fontFamily: HU.display, fontSize: 18, fontWeight: 500, color: HU.ink, marginBottom: 14 }}>Editar registro</div>
               <div style={{ marginBottom: 14 }}><div style={labelStyle}>Dosis (Unidades)</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <input type="range" min={0} max={100} value={editUnits} onChange={e => setEditUnits(+e.target.value)} style={{ flex: 1, accentColor: HU.ink }} />
-                  <div style={{ fontFamily: HU.display, fontSize: 24, fontWeight: 500, color: HU.ink, minWidth: 60, textAlign: 'right' }}>{editUnits}u</div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+                  <div onClick={() => setEditUnits(Math.max(0, editUnits - 1))} style={{ width: 40, height: 40, borderRadius: 20, background: HU.cream, border: `1px solid ${HU.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 20, fontWeight: 600, color: HU.ink, userSelect: 'none' }}>−</div>
+                  <input type="number" value={editUnits} onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v) && v >= 0 && v <= 100) setEditUnits(v); }}
+                    style={{ width: 70, textAlign: 'center', fontFamily: HU.display, fontSize: 32, fontWeight: 500, color: HU.ink, border: 'none', background: 'transparent', outline: 'none' }} />
+                  <div onClick={() => setEditUnits(Math.min(100, editUnits + 1))} style={{ width: 40, height: 40, borderRadius: 20, background: HU.cream, border: `1px solid ${HU.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 20, fontWeight: 600, color: HU.ink, userSelect: 'none' }}>+</div>
+                  <div style={{ fontFamily: HU.sans, fontSize: 14, color: HU.mute }}>units</div>
                 </div>
               </div>
               <div style={{ marginBottom: 14 }}><div style={labelStyle}>Peso (lbs)</div><input type="number" step="0.1" value={editWeight} onChange={e => setEditWeight(e.target.value)} style={inputStyle} /></div>
@@ -468,11 +471,14 @@ export default function TrackPage() {
               <div style={{ marginBottom: 16 }}>
                 <div style={labelStyle}>Dosis (Unidades)</div>
                 <SyringeVisual units={injUnits} maxUnits={100} />
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6 }}>
-                  <input type="range" min={0} max={100} value={injUnits} onChange={e => setInjUnits(+e.target.value)} style={{ flex: 1, accentColor: HU.ink }} />
-                  <div style={{ fontFamily: HU.display, fontSize: 28, fontWeight: 500, color: HU.ink, minWidth: 70, textAlign: 'right' }}>{injUnits}<span style={{ fontSize: 14, color: HU.mute }}>u</span></div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 8 }}>
+                  <div onClick={() => setInjUnits(Math.max(0, injUnits - 1))} style={{ width: 44, height: 44, borderRadius: 22, background: HU.cream, border: `1px solid ${HU.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 22, fontWeight: 600, color: HU.ink, userSelect: 'none' }}>−</div>
+                  <input type="number" value={injUnits} onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v) && v >= 0 && v <= 100) setInjUnits(v); }}
+                    style={{ width: 80, textAlign: 'center', fontFamily: HU.display, fontSize: 36, fontWeight: 500, color: HU.ink, border: 'none', background: 'transparent', outline: 'none' }} />
+                  <div onClick={() => setInjUnits(Math.min(100, injUnits + 1))} style={{ width: 44, height: 44, borderRadius: 22, background: HU.cream, border: `1px solid ${HU.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 22, fontWeight: 600, color: HU.ink, userSelect: 'none' }}>+</div>
+                  <div style={{ fontFamily: HU.sans, fontSize: 14, color: HU.mute }}>units</div>
                 </div>
-                <div style={{ fontFamily: HU.mono, fontSize: 11, color: HU.mute, marginTop: 4 }}>
+                <div style={{ fontFamily: HU.mono, fontSize: 11, color: HU.mute, marginTop: 4, textAlign: 'center' }}>
                   = {calcMgForUnits(currentOrder, injUnits)} mg
                   {currentOrder.increment_units > 0 && <span> · Recomendado: <strong style={{ color: HU.ink }}>{currentDoseUnits}u</strong></span>}
                 </div>
@@ -608,11 +614,14 @@ export default function TrackPage() {
                         <div style={{ fontFamily: HU.sans, fontSize: 13, fontWeight: 600, color: HU.ink, marginBottom: 10 }}>Editar registro</div>
                         <div style={{ marginBottom: 10 }}>
                           <div style={{ fontFamily: HU.sans, fontSize: 11, fontWeight: 600, color: HU.ink, marginBottom: 4, textTransform: 'uppercase', letterSpacing: .4 }}>Dosis (Unidades)</div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <input type="range" min={0} max={100} value={editUnits} onChange={e => setEditUnits(+e.target.value)} style={{ flex: 1, accentColor: HU.ink }} />
-                            <div style={{ fontFamily: HU.display, fontSize: 22, fontWeight: 500, color: HU.ink, minWidth: 50, textAlign: 'right' }}>{editUnits}u</div>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                            <div onClick={() => setEditUnits(Math.max(0, editUnits - 1))} style={{ width: 36, height: 36, borderRadius: 18, background: HU.paper, border: `1px solid ${HU.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 18, fontWeight: 600, color: HU.ink, userSelect: 'none' }}>−</div>
+                            <input type="number" value={editUnits} onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v) && v >= 0 && v <= 100) setEditUnits(v); }}
+                              style={{ width: 60, textAlign: 'center', fontFamily: HU.display, fontSize: 28, fontWeight: 500, color: HU.ink, border: 'none', background: 'transparent', outline: 'none' }} />
+                            <div onClick={() => setEditUnits(Math.min(100, editUnits + 1))} style={{ width: 36, height: 36, borderRadius: 18, background: HU.paper, border: `1px solid ${HU.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 18, fontWeight: 600, color: HU.ink, userSelect: 'none' }}>+</div>
+                            <div style={{ fontFamily: HU.sans, fontSize: 12, color: HU.mute }}>units</div>
                           </div>
-                          {currentOrder && <div style={{ fontFamily: HU.mono, fontSize: 10, color: HU.mute, marginTop: 2 }}>= {calcMgForUnits(currentOrder, editUnits)} mg</div>}
+                          {currentOrder && <div style={{ fontFamily: HU.mono, fontSize: 10, color: HU.mute, marginTop: 2, textAlign: 'center' }}>= {calcMgForUnits(currentOrder, editUnits)} mg</div>}
                         </div>
                         <div style={{ marginBottom: 10 }}>
                           <div style={{ fontFamily: HU.sans, fontSize: 11, fontWeight: 600, color: HU.ink, marginBottom: 4, textTransform: 'uppercase', letterSpacing: .4 }}>Peso (lbs)</div>
