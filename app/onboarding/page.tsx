@@ -4,13 +4,14 @@ import { useState } from 'react';
 import { createClient } from '@/lib/supabase';
 import { HU } from '@/lib/design';
 import { Btn, Icon } from '@/components/ui';
-import type { GLP1Med } from '@/lib/types';
 
-const GLP1_OPTIONS: { name: string; sub: string; value: GLP1Med }[] = [
+const GLP1_OPTIONS: { name: string; sub: string; value: string }[] = [
   { name: 'Ozempic®', sub: 'Semaglutida', value: 'ozempic' },
   { name: 'Wegovy®', sub: 'Semaglutida alta dosis', value: 'wegovy' },
   { name: 'Mounjaro®', sub: 'Tirzepatida', value: 'mounjaro' },
+  { name: 'Compounded Tirzepatide', sub: 'Tirzepatida compuesta', value: 'compounded_tirzepatide' },
   { name: 'Saxenda®', sub: 'Liraglutida', value: 'saxenda' },
+  { name: 'Otro', sub: 'Escribir manualmente', value: 'other' },
   { name: 'Aún no estoy en GLP-1', sub: 'Plan preventivo', value: 'none' },
 ];
 
@@ -26,7 +27,8 @@ export default function OnboardingPage() {
   const [targetLbs, setTargetLbs] = useState(150);
   const [heightFt, setHeightFt] = useState(5);
   const [heightIn, setHeightIn] = useState(8);
-  const [med, setMed] = useState<GLP1Med>('ozempic');
+  const [med, setMed] = useState('ozempic');
+  const [customMed, setCustomMed] = useState('');
   const [saving, setSaving] = useState(false);
   const supabase = createClient();
 
@@ -45,7 +47,8 @@ export default function OnboardingPage() {
     await supabase.from('profiles').update({
       sex, age, height_cm: heightCm,
       current_weight: weightKg, target_weight: targetKg,
-      glp1_med: med, glp1_dose: med !== 'none' ? '0.25 mg' : null,
+      glp1_med: med === 'other' ? customMed : med,
+      glp1_dose: med !== 'none' ? '0.25 mg' : null,
       onboarding_done: true,
       updated_at: new Date().toISOString(),
     }).eq('id', user.id);
@@ -226,6 +229,21 @@ export default function OnboardingPage() {
             );
           })}
         </div>
+
+        {med === 'other' && (
+          <div style={{ marginTop: 14 }}>
+            <div style={{ fontFamily: HU.sans, fontSize: 12, fontWeight: 600, color: HU.ink, marginBottom: 8, textTransform: 'uppercase', letterSpacing: .4 }}>Nombre del medicamento</div>
+            <input
+              type="text" placeholder="Escribe el nombre de tu medicamento"
+              value={customMed} onChange={e => setCustomMed(e.target.value)}
+              style={{
+                width: '100%', height: 48, padding: '0 16px', borderRadius: 14,
+                border: `1px solid ${HU.line}`, background: HU.paper,
+                fontFamily: HU.sans, fontSize: 15, color: HU.ink, outline: 'none',
+              }}
+            />
+          </div>
+        )}
         <div style={{ marginTop: 18, background: `${HU.coral}14`, borderRadius: 14, padding: '12px 14px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
           <Icon name="bell" size={16} color={HU.coral} stroke={2} />
           <div style={{ fontFamily: HU.sans, fontSize: 12, color: HU.inkDeep, lineHeight: 1.4 }}>
