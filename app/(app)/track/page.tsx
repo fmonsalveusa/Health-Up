@@ -7,7 +7,8 @@ import { Icon, Btn, Chip, TabBar } from '@/components/ui';
 import { kgToLbs, lbsToKg } from '@/lib/nutrition';
 import type { Profile, WeightLog, DoseLog, DosingOrder } from '@/lib/types';
 import { localDateStr, parseLocalDate } from '@/lib/dates';
-import { getWeekNumber, calcDoseForWeek, calcMgForUnits } from '@/lib/dosing';
+import { getWeekNumber, calcDoseForWeek, calcMgForUnits, isPen, penDoseMg } from '@/lib/dosing';
+import { PenVisual } from '@/components/PenVisual';
 import { DoseStatus } from '@/components/DoseStatus';
 import { WeightChart } from '@/components/WeightChart';
 
@@ -81,6 +82,8 @@ export default function TrackPage() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [orderVialUnits, setOrderVialUnits] = useState('');
+  const [orderDevice, setOrderDevice] = useState<'syringe' | 'pen'>('syringe');
+  const [orderPens, setOrderPens] = useState('4');
   const [editingVial, setEditingVial] = useState(false);
   const [vialInput, setVialInput] = useState('');
 
@@ -110,15 +113,23 @@ export default function TrackPage() {
   async function saveVialUnits() {
     if (!currentOrder) return;
     const v = parseInt(vialInput);
-    if (!v || v <= 0) { showError('Ingresa las unidades totales del vial.'); return; }
+    if (!v || v <= 0) { showError(isPen(currentOrder) ? 'Ingresa cuántas plumas trae la caja.' : 'Ingresa las unidades totales del vial.'); return; }
     const { error } = await supabase.from('dosing_orders').update({ vial_units: v }).eq('id', currentOrder.id);
     if (error) { showError(`No se pudo guardar el vial: ${error.message}`); return; }
     setEditingVial(false); setVialInput(''); loadData();
   }
 
   // mg de una dosis ya registrada: usa la orden con la que se registró, o su propia relación mg/unidad
+  function orderForDose(dose: DoseLog): DosingOrder | null {
+    return allOrders.find(o => o.id === dose.order_id) || (dose.order_id ? null : currentOrder);
+  }
+  // Dosis registrada con pluma: no tiene unidades, la dosis es fija en mg
+  // (sólo por su order_id exacto, para no tratar dosis viejas de jeringa como pluma)
+  const isPenDose = (dose: DoseLog) => isPen(allOrders.find(o => o.id === dose.order_id));
+
   function calcMgForDose(dose: DoseLog, units: number): number {
-    const order = allOrders.find(o => o.id === dose.order_id) || currentOrder;
+    const order = orderForDose(dose);
+    if (order && isPen(order)) return dose.dose_mg || penDoseMg(order);
     if (order) return calcMgForUnits(order, units);
     if (dose.dose_units && dose.dose_mg) return Math.round(units * (dose.dose_mg / dose.dose_units) * 100) / 100;
     return dose.dose_mg;
@@ -135,11 +146,12 @@ export default function TrackPage() {
     setErrorMsg('');
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setSaving(false); showError('Tu sesión expiró. Vuelve a iniciar sesión.'); return; }
-    const mg = calcMgForUnits(currentOrder, injUnits);
+    const pen = isPen(currentOrder);
+    const mg = pen ? penDoseMg(currentOrder) : calcMgForUnits(currentOrder, injUnits);
     const weekNum = getWeekNumber(currentOrder);
     const today = localDateStr();
     const { error: doseErr } = await supabase.from('dose_logs').insert({
-      user_id: user.id, dose_mg: mg, dose_units: injUnits,
+      user_id: user.id, dose_mg: mg, dose_units: pen ? null : injUnits,
       med_name: currentOrder.medication, order_id: currentOrder.id,
       week_number: weekNum, scheduled_for: today,
       notes: [injEffects.length > 0 ? `Efectos: ${injEffects.join(', ')}` : '', injNotes].filter(Boolean).join(' | ') || null,
@@ -190,10 +202,11 @@ export default function TrackPage() {
     if (!user) { setSavingEdit(false); showError('Tu sesión expiró. Vuelve a iniciar sesión.'); return; }
 
     const editingDose = doseLogs.find(d => d.id === editingId);
+    const penEdit = editingDose ? isPenDose(editingDose) : false;
     const mg = editingDose ? calcMgForDose(editingDose, editUnits) : 0;
     const { error: editErr } = await supabase.from('dose_logs').update({
-      dose_units: editUnits,
-      dose_mg: mg,
+      // con pluma sólo se editan peso y notas; la dosis es la de la pluma
+      ...(penEdit ? {} : { dose_units: editUnits, dose_mg: mg }),
       notes: editNotes || null,
     }).eq('id', editingId);
     if (editErr) {
@@ -233,6 +246,30 @@ export default function TrackPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setSavingOrder(false); showError('Tu sesión expiró. Vuelve a iniciar sesión.'); return; }
     const startU = parseInt(orderStartUnits) || 0, startM = parseFloat(orderStartMg) || null;
+
+    if (orderDevice === 'pen') {
+      // Pluma de una dosis: dosis fija en mg y cantidad de plumas en la caja
+      const pens = parseInt(orderPens) || 0;
+      if (!startM) { setSavingOrder(false); showError('Ingresa la dosis de la pluma en mg.'); return; }
+      if (!pens) { setSavingOrder(false); showError('Ingresa cuántas plumas trae la caja.'); return; }
+      const { error: penErr } = await supabase.from('dosing_orders').insert({
+        user_id: user.id, order_number: orderNum || null, medication: orderMed, device: 'pen',
+        start_units: 0, start_mg: startM, increment_units: 0, increment_mg: 0,
+        max_units: null, max_mg: startM, max_weeks: pens, vial_units: pens,
+        instructions: orderInstructions || null, is_current: true, ordered_at: localDateStr(),
+      });
+      if (penErr) {
+        setSavingOrder(false);
+        showError(penErr.message.includes('device')
+          ? 'Falta correr supabase/005_pen_device.sql en Supabase para guardar plumas.'
+          : `No se pudo guardar la orden: ${penErr.message}`);
+        return;
+      }
+      setOrderNum(''); setOrderStartMg(''); setOrderInstructions(''); setOrderPens('4');
+      setSavingOrder(false); setActiveTab('registro'); loadData();
+      return;
+    }
+
     if (!startU) { setSavingOrder(false); showError('Ingresa la dosis inicial en unidades.'); return; }
     const { error: orderErr } = await supabase.from('dosing_orders').insert({
       user_id: user.id, order_number: orderNum || null, medication: orderMed,
@@ -273,6 +310,9 @@ export default function TrackPage() {
     : 0;
   const remaining = currentLbs - targetLbs;
   const weekNum = currentOrder ? getWeekNumber(currentOrder) : 0;
+  const penOrder = isPen(currentOrder);
+  const editingDoseLog = editingId ? doseLogs.find(d => d.id === editingId) || null : null;
+  const editingIsPen = editingDoseLog ? isPenDose(editingDoseLog) : false;
   const currentDoseUnits = currentOrder ? calcDoseForWeek(currentOrder, weekNum) : 0;
   const currentDoseMg = currentOrder ? calcMgForUnits(currentOrder, currentDoseUnits) : 0;
   const nextWeekUnits = currentOrder ? calcDoseForWeek(currentOrder, weekNum + 1) : 0;
@@ -335,10 +375,20 @@ export default function TrackPage() {
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontFamily: HU.display, fontSize: 24, fontWeight: 500, color: HU.ink }}>{currentDoseUnits}u</div>
-              <div style={{ fontFamily: HU.mono, fontSize: 11, color: HU.mute }}>{currentDoseMg} mg</div>
+              {penOrder ? (
+                <>
+                  <div style={{ fontFamily: HU.display, fontSize: 24, fontWeight: 500, color: HU.ink }}>{penDoseMg(currentOrder)} mg</div>
+                  <div style={{ fontFamily: HU.mono, fontSize: 11, color: HU.mute }}>Pluma de una dosis</div>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontFamily: HU.display, fontSize: 24, fontWeight: 500, color: HU.ink }}>{currentDoseUnits}u</div>
+                  <div style={{ fontFamily: HU.mono, fontSize: 11, color: HU.mute }}>{currentDoseMg} mg</div>
+                </>
+              )}
             </div>
           </div>
+          {penOrder && <div style={{ marginTop: 8 }}><PenVisual mg={penDoseMg(currentOrder)} /></div>}
           {currentOrder.instructions && (
             <div style={{ marginTop: 10, padding: '8px 12px', borderRadius: 10, background: HU.cream, fontFamily: HU.sans, fontSize: 11, color: HU.mute, lineHeight: 1.5 }}>
               {currentOrder.instructions}
@@ -350,7 +400,7 @@ export default function TrackPage() {
           {/* Tamaño del vial: agregar o corregir */}
           {editingVial ? (
             <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
-              <input type="number" autoFocus placeholder="Unidades totales (ej: 300)" value={vialInput} onChange={e => setVialInput(e.target.value)}
+              <input type="number" autoFocus placeholder={penOrder ? 'Plumas en la caja (ej: 4)' : 'Unidades totales (ej: 300)'} value={vialInput} onChange={e => setVialInput(e.target.value)}
                 style={{ ...inputStyle, height: 40, fontSize: 14 }} />
               <Btn variant="secondary" size="sm" onClick={() => { setEditingVial(false); setVialInput(''); }}>✕</Btn>
               <Btn variant="leaf" size="sm" icon="check" onClick={saveVialUnits}>OK</Btn>
@@ -358,7 +408,9 @@ export default function TrackPage() {
           ) : (
             <button type="button" onClick={() => { setEditingVial(true); setVialInput(currentOrder.vial_units ? String(currentOrder.vial_units) : ''); }}
               style={{ marginTop: 8, padding: 0, border: 'none', background: 'none', cursor: 'pointer', fontFamily: HU.sans, fontSize: 12, fontWeight: 600, color: HU.leafDeep }}>
-              {currentOrder.vial_units ? 'Editar unidades del vial' : '+ Agregar unidades del vial para saber cuántas dosis quedan'}
+              {penOrder
+                ? (currentOrder.vial_units ? 'Editar plumas de la caja' : '+ Agregar cuántas plumas trae la caja')
+                : (currentOrder.vial_units ? 'Editar unidades del vial' : '+ Agregar unidades del vial para saber cuántas dosis quedan')}
             </button>
           )}
         </div>
@@ -391,7 +443,9 @@ export default function TrackPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <div style={{ fontFamily: HU.display, fontSize: 22, fontWeight: 500, color: HU.ink }}>
-                    {lastDose.dose_units || '—'}u <span style={{ fontSize: 14, color: HU.mute }}>({lastDose.dose_mg}mg)</span>
+                    {isPenDose(lastDose)
+                      ? <>{lastDose.dose_mg} mg <span style={{ fontSize: 14, color: HU.mute }}>(pluma)</span></>
+                      : <>{lastDose.dose_units || '—'}u <span style={{ fontSize: 14, color: HU.mute }}>({lastDose.dose_mg}mg)</span></>}
                   </div>
                   <div style={{ fontFamily: HU.sans, fontSize: 12, color: HU.mute, marginTop: 2 }}>
                     {new Date(lastDose.taken_at).toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'short' })}
@@ -431,6 +485,11 @@ export default function TrackPage() {
           {editingId && (
             <div style={{ padding: 18, borderRadius: 18, background: HU.paper, border: `2px solid ${HU.sun}`, marginBottom: 14 }}>
               <div style={{ fontFamily: HU.display, fontSize: 18, fontWeight: 500, color: HU.ink, marginBottom: 14 }}>Editar registro</div>
+              {editingIsPen ? (
+                <div style={{ marginBottom: 14, fontFamily: HU.sans, fontSize: 13, color: HU.mute }}>
+                  Dosis: <strong style={{ color: HU.ink }}>{editingDoseLog?.dose_mg} mg</strong> (pluma de una dosis)
+                </div>
+              ) : (
               <div style={{ marginBottom: 14 }}><div style={labelStyle}>Dosis (Unidades)</div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
                   <div onClick={() => setEditUnits(Math.max(0, editUnits - 1))} style={{ width: 40, height: 40, borderRadius: 20, background: HU.cream, border: `1px solid ${HU.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 20, fontWeight: 600, color: HU.ink, userSelect: 'none' }}>−</div>
@@ -440,6 +499,7 @@ export default function TrackPage() {
                   <div style={{ fontFamily: HU.sans, fontSize: 14, color: HU.mute }}>units</div>
                 </div>
               </div>
+              )}
               <div style={{ marginBottom: 14 }}><div style={labelStyle}>Peso (lbs)</div><input type="number" step="0.1" value={editWeight} onChange={e => setEditWeight(e.target.value)} style={inputStyle} /></div>
               <div style={{ marginBottom: 14 }}><div style={labelStyle}>Observaciones</div><textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} rows={2} style={{ ...inputStyle, height: 'auto', padding: '12px 14px', resize: 'none' as const }} /></div>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -468,6 +528,16 @@ export default function TrackPage() {
               <div style={{ fontFamily: HU.display, fontSize: 20, fontWeight: 500, color: HU.ink, marginBottom: 4 }}>Nueva inyección</div>
               <div style={{ fontFamily: HU.mono, fontSize: 11, color: HU.mute, marginBottom: 16 }}>Semana {weekNum} · {currentOrder.medication}</div>
 
+              {penOrder ? (
+                // Pluma de una dosis: no hay unidades que elegir, se inyecta la pluma completa
+                <div style={{ marginBottom: 16 }}>
+                  <div style={labelStyle}>Dosis</div>
+                  <PenVisual mg={penDoseMg(currentOrder)} />
+                  <div style={{ fontFamily: HU.sans, fontSize: 13, color: HU.mute, marginTop: 6, textAlign: 'center' }}>
+                    Pluma completa · <strong style={{ color: HU.ink }}>{penDoseMg(currentOrder)} mg</strong>
+                  </div>
+                </div>
+              ) : (
               <div style={{ marginBottom: 16 }}>
                 <div style={labelStyle}>Dosis (Unidades)</div>
                 <SyringeVisual units={injUnits} maxUnits={100} />
@@ -483,6 +553,7 @@ export default function TrackPage() {
                   {currentOrder.increment_units > 0 && <span> · Recomendado: <strong style={{ color: HU.ink }}>{currentDoseUnits}u</strong></span>}
                 </div>
               </div>
+              )}
 
               <div style={{ marginBottom: 16 }}><div style={labelStyle}>Peso de hoy</div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -558,7 +629,7 @@ export default function TrackPage() {
                           <Icon name="syringe" size={18} color="#fff" />
                         </div>
                         <div>
-                          <div style={{ fontFamily: HU.mono, fontSize: 15, fontWeight: 700, color: HU.ink }}>{d.dose_units || '—'}u · {d.dose_mg}mg</div>
+                          <div style={{ fontFamily: HU.mono, fontSize: 15, fontWeight: 700, color: HU.ink }}>{isPenDose(d) ? `Pluma · ${d.dose_mg}mg` : `${d.dose_units || '—'}u · ${d.dose_mg}mg`}</div>
                           <div style={{ fontFamily: HU.sans, fontSize: 12, color: HU.mute }}>
                             {new Date(d.taken_at).toLocaleDateString('es', { weekday: 'short', day: 'numeric', month: 'short' })}
                             {d.week_number ? ` · Sem ${d.week_number}` : ''}
@@ -612,6 +683,11 @@ export default function TrackPage() {
                     {editingId === d.id && (
                       <div style={{ marginTop: 10, padding: 14, borderRadius: 14, background: HU.cream, border: `2px solid ${HU.sun}` }}>
                         <div style={{ fontFamily: HU.sans, fontSize: 13, fontWeight: 600, color: HU.ink, marginBottom: 10 }}>Editar registro</div>
+                        {isPenDose(d) ? (
+                          <div style={{ marginBottom: 10, fontFamily: HU.sans, fontSize: 13, color: HU.mute }}>
+                            Dosis: <strong style={{ color: HU.ink }}>{d.dose_mg} mg</strong> (pluma de una dosis)
+                          </div>
+                        ) : (
                         <div style={{ marginBottom: 10 }}>
                           <div style={{ fontFamily: HU.sans, fontSize: 11, fontWeight: 600, color: HU.ink, marginBottom: 4, textTransform: 'uppercase', letterSpacing: .4 }}>Dosis (Unidades)</div>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
@@ -623,6 +699,7 @@ export default function TrackPage() {
                           </div>
 <div style={{ fontFamily: HU.mono, fontSize: 10, color: HU.mute, marginTop: 2, textAlign: 'center' }}>= {calcMgForDose(d, editUnits)} mg</div>
                         </div>
+                        )}
                         <div style={{ marginBottom: 10 }}>
                           <div style={{ fontFamily: HU.sans, fontSize: 11, fontWeight: 600, color: HU.ink, marginBottom: 4, textTransform: 'uppercase', letterSpacing: .4 }}>Peso (lbs)</div>
                           <input type="number" step="0.1" value={editWeight} onChange={e => setEditWeight(e.target.value)} placeholder="Peso en lbs"
@@ -679,7 +756,44 @@ export default function TrackPage() {
           <div style={{ padding: 20, borderRadius: 22, background: HU.paper, border: `1px solid ${HU.line}` }}>
             <div style={{ fontFamily: HU.display, fontSize: 20, fontWeight: 500, color: HU.ink, marginBottom: 16 }}>Nueva orden de producto</div>
             <div style={{ marginBottom: 14 }}><div style={labelStyle}>Número de orden</div><input placeholder="Ej: 4566671" value={orderNum} onChange={e => setOrderNum(e.target.value)} style={inputStyle} /></div>
-            <div style={{ marginBottom: 14 }}><div style={labelStyle}>Medicamento</div><input placeholder="Compounded Tirzepatide" value={orderMed} onChange={e => setOrderMed(e.target.value)} style={inputStyle} /></div>
+            <div style={{ marginBottom: 14 }}><div style={labelStyle}>Medicamento</div><input placeholder={orderDevice === 'pen' ? 'Zepbound' : 'Compounded Tirzepatide'} value={orderMed} onChange={e => setOrderMed(e.target.value)} style={inputStyle} /></div>
+
+            {/* Tipo de dispositivo */}
+            <div style={{ marginBottom: 14 }}>
+              <div style={labelStyle}>¿Cómo se inyecta?</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                {([
+                  { k: 'syringe' as const, t: 'Vial + jeringa', s: 'Dosis en unidades' },
+                  { k: 'pen' as const, t: 'Pluma de una dosis', s: 'Autoinyector, dosis fija' },
+                ]).map(o => {
+                  const on = orderDevice === o.k;
+                  return (
+                    <button key={o.k} type="button" onClick={() => {
+                      setOrderDevice(o.k);
+                      if (o.k === 'pen' && orderMed === 'Compounded Tirzepatide') setOrderMed('Zepbound');
+                      if (o.k === 'syringe' && orderMed === 'Zepbound') setOrderMed('Compounded Tirzepatide');
+                    }} style={{
+                      textAlign: 'left', padding: '10px 12px', borderRadius: 12, cursor: 'pointer',
+                      background: on ? HU.primaryContainer : HU.paper, border: `1px solid ${on ? HU.primary : HU.line}`,
+                    }}>
+                      <div style={{ fontFamily: HU.sans, fontSize: 14, fontWeight: 600, color: on ? HU.onPrimaryContainer : HU.ink }}>{o.t}</div>
+                      <div style={{ fontFamily: HU.sans, fontSize: 11, color: HU.mute, marginTop: 2 }}>{o.s}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {orderDevice === 'pen' ? (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                  <div><div style={labelStyle}>Dosis por pluma (mg)</div><input type="number" step="0.5" placeholder="2.5" value={orderStartMg} onChange={e => setOrderStartMg(e.target.value)} style={inputStyle} /></div>
+                  <div><div style={labelStyle}>Plumas en la caja</div><input type="number" placeholder="4" value={orderPens} onChange={e => setOrderPens(e.target.value)} style={inputStyle} /></div>
+                </div>
+                {parseFloat(orderStartMg) > 0 && <div style={{ marginBottom: 14 }}><PenVisual mg={parseFloat(orderStartMg)} /></div>}
+              </>
+            ) : (
+            <>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
               <div><div style={labelStyle}>Dosis inicial (units)</div><input type="number" placeholder="82" value={orderStartUnits} onChange={e => setOrderStartUnits(e.target.value)} style={inputStyle} /></div>
               <div><div style={labelStyle}>Dosis inicial (mg)</div><input type="number" step="0.01" placeholder="14.47" value={orderStartMg} onChange={e => setOrderStartMg(e.target.value)} style={inputStyle} /></div>
@@ -696,8 +810,10 @@ export default function TrackPage() {
               <div><div style={labelStyle}>Semanas máximas</div><input type="number" placeholder="8" value={orderMaxWeeks} onChange={e => setOrderMaxWeeks(e.target.value)} style={inputStyle} /></div>
               <div><div style={labelStyle}>Unidades del vial</div><input type="number" placeholder="300" value={orderVialUnits} onChange={e => setOrderVialUnits(e.target.value)} style={inputStyle} /></div>
             </div>
+            </>
+            )}
             <div style={{ marginBottom: 18 }}><div style={labelStyle}>Instrucciones completas</div>
-              <textarea placeholder="Inject 82 Units (14.47mg) subcutaneously once a week..." value={orderInstructions} onChange={e => setOrderInstructions(e.target.value)} rows={4}
+              <textarea placeholder={orderDevice === 'pen' ? 'Inject 1 pen subcutaneously once a week...' : 'Inject 82 Units (14.47mg) subcutaneously once a week...'} value={orderInstructions} onChange={e => setOrderInstructions(e.target.value)} rows={4}
                 style={{ ...inputStyle, height: 'auto', padding: '12px 14px', resize: 'none' as const }} />
             </div>
             <Btn variant="primary" size="lg" icon="plus" loading={savingOrder} onClick={saveNewOrder} style={{ width: '100%' }}>Guardar orden</Btn>
@@ -710,7 +826,7 @@ export default function TrackPage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                       <div style={{ fontFamily: HU.sans, fontSize: 14, fontWeight: 600, color: HU.ink }}>{o.order_number ? `#${o.order_number}` : o.medication}</div>
-                      <div style={{ fontFamily: HU.mono, fontSize: 11, color: HU.mute }}>{o.start_units}u ({o.start_mg}mg) → máx {o.max_units}u · {parseLocalDate(o.ordered_at).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+                      <div style={{ fontFamily: HU.mono, fontSize: 11, color: HU.mute }}>{isPen(o) ? `Pluma ${o.start_mg} mg${o.vial_units ? ` × ${o.vial_units}` : ''}` : `${o.start_units}u (${o.start_mg}mg) → máx ${o.max_units}u`} · {parseLocalDate(o.ordered_at).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
                     </div>
                     {o.is_current && <div style={{ padding: '3px 8px', borderRadius: 6, background: `${HU.leaf}22`, fontFamily: HU.mono, fontSize: 10, color: HU.leafDeep, fontWeight: 700 }}>ACTUAL</div>}
                   </div>

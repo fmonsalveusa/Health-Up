@@ -91,7 +91,8 @@ export interface DosingOrder {
   max_units: number | null;
   max_mg: number | null;
   max_weeks: number;
-  vial_units: number | null;      // unidades totales del vial (migración 004)
+  vial_units: number | null;      // jeringa: unidades del vial · pluma: plumas en la caja (migración 004)
+  device?: 'syringe' | 'pen';     // migración 005; sin la columna se asume 'syringe'
   instructions: string | null;
   is_current: boolean;
   ordered_at: string;

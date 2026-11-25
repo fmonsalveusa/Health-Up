@@ -7,7 +7,7 @@ import { Icon, Btn, Ring, MacroBar, FoodImg, TabBar } from '@/components/ui';
 import { calculateTDEE, calculateTargetKcal, calculateMacros } from '@/lib/nutrition';
 import { medLabel, type Profile, type PlannedMeal, type Recipe, type DoseLog, type DosingOrder } from '@/lib/types';
 import { localDateStr } from '@/lib/dates';
-import { calcDoseForWeek, calcMgForUnits, getWeekNumber } from '@/lib/dosing';
+import { formatOrderDose, getWeekNumber, isPen } from '@/lib/dosing';
 import { DoseStatus } from '@/components/DoseStatus';
 
 export default function HomePage() {
@@ -156,9 +156,7 @@ export default function HomePage() {
       {/* GLP-1 dose card */}
       {((profile.glp1_med && profile.glp1_med !== 'none') || order) && (() => {
         // Con orden activa, la dosis sale de la orden (semana actual); si no, la del perfil
-        const units = order ? calcDoseForWeek(order, getWeekNumber(order)) : null;
-        const doseText = order && units != null
-          ? `${units}u · ${calcMgForUnits(order, units)} mg`
+        const doseText = order ? formatOrderDose(order) + (isPen(order) ? ' · pluma' : '')
           : profile.glp1_dose || 'sin dosis';
         const medName = order?.medication || medLabel(profile.glp1_med || '');
         return (

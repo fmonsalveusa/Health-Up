@@ -47,7 +47,9 @@ export function DoseStatus({ order, doseLogs, medication, dark = false }: Props)
           {next ? (
             <div style={{ fontFamily: HU.sans, fontSize: 14, fontWeight: 600, color: nextColor, marginTop: 1 }}>
               {next.label} <span style={{ fontWeight: 400, color: sub }}>· {fmtShortDate(next.date)}</span>
-              {next.units != null && <span style={{ fontWeight: 400, color: sub }}> · {next.units}u ({next.mg} mg)</span>}
+              {next.units != null
+                ? <span style={{ fontWeight: 400, color: sub }}> · {next.units}u ({next.mg} mg)</span>
+                : next.mg != null && <span style={{ fontWeight: 400, color: sub }}> · {next.mg} mg</span>}
             </div>
           ) : (
             <div style={{ fontFamily: HU.sans, fontSize: 13, color: sub, marginTop: 1 }}>Registra tu primera inyección</div>
@@ -69,18 +71,33 @@ export function DoseStatus({ order, doseLogs, medication, dark = false }: Props)
       {vial && (
         <div style={{ padding: '10px 12px', borderRadius: 12, background: rowBg }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-            <div style={{ fontFamily: HU.sans, fontSize: 11, fontWeight: 500, color: sub, letterSpacing: .3 }}>Vial</div>
+            <div style={{ fontFamily: HU.sans, fontSize: 11, fontWeight: 500, color: sub, letterSpacing: .3 }}>{vial.pens ? 'Plumas en la caja' : 'Vial'}</div>
             <div style={{ fontFamily: HU.mono, fontSize: 11, color: fg }}>
-              <strong>{vial.remaining}u</strong> <span style={{ color: sub }}>de {vial.total}u</span>
+              {vial.pens
+                ? <><strong>{vial.remaining}</strong> <span style={{ color: sub }}>de {vial.total}</span></>
+                : <><strong>{vial.remaining}u</strong> <span style={{ color: sub }}>de {vial.total}u</span></>}
             </div>
           </div>
-          <div style={{ height: 6, borderRadius: 3, background: dark ? 'rgba(255,255,255,.15)' : HU.lineSoft, overflow: 'hidden' }}>
-            <div style={{ width: `${(vial.remaining / vial.total) * 100}%`, height: '100%', background: vial.low ? warnC : okC, transition: 'width .4s' }} />
-          </div>
+          {vial.pens ? (
+            // Una "pluma" por cada una de la caja: llenas = disponibles
+            <div style={{ display: 'flex', gap: 4 }}>
+              {Array.from({ length: vial.total }).map((_, i) => (
+                <div key={i} style={{ flex: 1, height: 8, borderRadius: 4, background: i < vial.remaining ? (vial.low ? warnC : okC) : dark ? 'rgba(255,255,255,.15)' : HU.lineSoft }} />
+              ))}
+            </div>
+          ) : (
+            <div style={{ height: 6, borderRadius: 3, background: dark ? 'rgba(255,255,255,.15)' : HU.lineSoft, overflow: 'hidden' }}>
+              <div style={{ width: `${(vial.remaining / vial.total) * 100}%`, height: '100%', background: vial.low ? warnC : okC, transition: 'width .4s' }} />
+            </div>
+          )}
           <div style={{ fontFamily: HU.sans, fontSize: 12, color: vial.low ? warnC : sub, marginTop: 6, fontWeight: vial.low ? 600 : 400 }}>
-            {vial.dosesLeft === 0
-              ? 'No alcanza para la próxima dosis — pide tu reorden.'
-              : `Alcanza para ${vial.dosesLeft} dosis${vial.runOutDate ? ` (hasta ${fmtShortDate(vial.runOutDate)})` : ''}${vial.low ? ' — pide tu reorden.' : ''}`}
+            {vial.pens
+              ? vial.remaining === 0
+                ? 'No te quedan plumas — pide tu reorden.'
+                : `Te ${vial.remaining === 1 ? 'queda 1 pluma' : `quedan ${vial.remaining} plumas`}${vial.runOutDate ? ` (hasta ${fmtShortDate(vial.runOutDate)})` : ''}${vial.low ? ' — pide tu reorden.' : ''}`
+              : vial.dosesLeft === 0
+                ? 'No alcanza para la próxima dosis — pide tu reorden.'
+                : `Alcanza para ${vial.dosesLeft} dosis${vial.runOutDate ? ` (hasta ${fmtShortDate(vial.runOutDate)})` : ''}${vial.low ? ' — pide tu reorden.' : ''}`}
           </div>
         </div>
       )}
