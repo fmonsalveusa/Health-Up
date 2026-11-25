@@ -297,7 +297,7 @@ export default function TrackPage() {
       </div>
 
       {/* ── Weight hero with line chart ── */}
-      <div style={{ margin: '10px 20px 12px', padding: '18px 14px 8px', borderRadius: 22, background: HU.ink, color: '#fff' }}>
+      <div style={{ margin: '10px 20px 12px', padding: '18px 14px 8px', borderRadius: 24, background: HU.primary, color: '#fff' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '0 4px', marginBottom: 8 }}>
           <div>
             <div style={{ fontFamily: HU.mono, fontSize: 10, letterSpacing: 1, opacity: .6, textTransform: 'uppercase' }}>Peso actual</div>
@@ -546,8 +546,8 @@ export default function TrackPage() {
                   }
                 }
                 // Color: green=lost, red=gained, yellow=same (within 0.3 lbs)
-                const wColor = Math.abs(weightChange) < 0.3 ? HU.sun : weightChange < 0 ? '#2D8C3C' : '#C0392B';
-                const wBg = Math.abs(weightChange) < 0.3 ? HU.sun : weightChange < 0 ? '#2D8C3C' : '#C0392B';
+                const wColor = Math.abs(weightChange) < 0.3 ? HU.sun : weightChange < 0 ? HU.leaf : HU.coral;
+                const wBg = Math.abs(weightChange) < 0.3 ? HU.sun : weightChange < 0 ? HU.leaf : HU.coral;
 
                 return (
                   <div key={d.id || i} style={{ padding: 14, borderRadius: 16, background: HU.paper, border: `1px solid ${HU.lineSoft}` }}>
@@ -663,7 +663,7 @@ export default function TrackPage() {
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                 {Array.from(new Set(doseLogs.slice().reverse().map(d => d.dose_units ? `${d.dose_units}u` : `${d.dose_mg}mg`))).map((d, i, arr) => (
                   <div key={d} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <div style={{ padding: '4px 10px', borderRadius: 8, background: i === arr.length - 1 ? HU.ink : HU.paper, color: i === arr.length - 1 ? '#fff' : HU.ink, fontFamily: HU.mono, fontSize: 12, fontWeight: 600, border: `1px solid ${i === arr.length - 1 ? HU.ink : HU.line}` }}>{d}</div>
+                    <div style={{ padding: '4px 10px', borderRadius: 8, background: i === arr.length - 1 ? HU.primary : HU.paper, color: i === arr.length - 1 ? '#fff' : HU.ink, fontFamily: HU.mono, fontSize: 12, fontWeight: 600, border: `1px solid ${i === arr.length - 1 ? HU.primary : HU.line}` }}>{d}</div>
                     {i < arr.length - 1 && <Icon name="chev" size={12} color={HU.dim} />}
                   </div>
                 ))}

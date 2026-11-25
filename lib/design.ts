@@ -1,31 +1,43 @@
 // Health Up Design System — tokens centralizados
-// Usamos estos para inline styles donde Tailwind no alcanza (SVGs, gradientes dinámicos)
+// Estilo inspirado en Material Design 3 (el lenguaje visual de las apps de Google):
+// superficies claras, azul como color principal, tipografía Roboto y bordes redondeados.
+// Los nombres (ink, leaf, cream…) se mantienen para no tocar cada pantalla.
 
 export const HU = {
-  ink: '#1E3A5F',
-  inkDeep: '#142744',
-  leaf: '#6BA368',
-  leafDeep: '#4F8452',
-  sun: '#E9C46A',
-  cream: '#FAFAF7',
-  creamWarm: '#F3EFE6',
-  paper: '#FFFFFF',
-  line: 'rgba(30,58,95,0.10)',
-  lineSoft: 'rgba(30,58,95,0.06)',
-  mute: 'rgba(30,58,95,0.55)',
-  dim: 'rgba(30,58,95,0.35)',
-  coral: '#E76F51',
+  // Color principal (botones, selección, tarjetas destacadas)
+  primary: '#0B57D0',
+  primaryContainer: '#D3E3FD',
+  onPrimaryContainer: '#041E49',
 
-  display: '"Fraunces", "Playfair Display", Georgia, serif',
-  sans: '"Inter", -apple-system, system-ui, sans-serif',
-  mono: '"JetBrains Mono", ui-monospace, Menlo, monospace',
+  // Texto
+  ink: '#1F1F1F',        // texto principal (on-surface)
+  inkDeep: '#041E49',    // texto sobre fondos tonales
+  mute: '#444746',       // texto secundario (on-surface-variant)
+  dim: '#747775',        // texto deshabilitado / íconos inactivos (outline)
+
+  // Semánticos
+  leaf: '#1E8E3E',       // éxito / bajó de peso
+  leafDeep: '#137333',
+  sun: '#F9AB00',        // aviso
+  coral: '#D93025',      // error / subió de peso
+
+  // Superficies
+  cream: '#F0F4F9',      // fondo de página y campos (surface-container)
+  creamWarm: '#E9EEF6',  // surface-container-high
+  paper: '#FFFFFF',      // tarjetas
+  line: '#C4C7C5',       // bordes (outline-variant)
+  lineSoft: '#E3E3E3',   // divisores suaves
+
+  display: '"Google Sans", "Google Sans Text", Roboto, Arial, sans-serif',
+  sans: '"Google Sans Text", Roboto, Arial, sans-serif',
+  mono: '"Google Sans Text", Roboto, Arial, sans-serif',
 } as const;
 
-// Tone maps for FoodImg placeholder
+// Tone maps for FoodImg placeholder (pasteles tipo Material)
 export const FOOD_TONES: Record<string, [string, string, string]> = {
-  leaf:  ['#D4E4C8', '#6BA368', '#4F8452'],
-  navy:  ['#D6E0EC', '#6B8CAE', '#1E3A5F'],
-  sun:   ['#F5E4B8', '#E9C46A', '#B08A3A'],
-  coral: ['#F5D4C8', '#E76F51', '#B04A30'],
-  cream: ['#F3EFE6', '#D6CFB8', '#9E9373'],
+  leaf:  ['#CEEAD6', '#81C995', '#1E8E3E'],
+  navy:  ['#D3E3FD', '#7CACF8', '#0B57D0'],
+  sun:   ['#FEEFC3', '#FDD663', '#E37400'],
+  coral: ['#FAD2CF', '#F28B82', '#D93025'],
+  cream: ['#E9EEF6', '#C4C7C5', '#747775'],
 };

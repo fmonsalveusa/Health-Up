@@ -71,7 +71,7 @@ export default function RecipesPage() {
                 <div style={{ height: 100, position: 'relative' }}>
                   <FoodImg tone={r.tone} label="" ratio="auto" style={{ height: '100%', aspectRatio: 'auto' }} />
                   {r.tags[0] && (
-                    <div style={{ position: 'absolute', bottom: 6, left: 6, padding: '2px 6px', borderRadius: 4, background: 'rgba(30,58,95,.8)', color: '#fff', fontFamily: HU.mono, fontSize: 9, letterSpacing: .4 }}>
+                    <div style={{ position: 'absolute', bottom: 6, left: 6, padding: '2px 6px', borderRadius: 8, background: 'rgba(255,255,255,.92)', color: HU.ink, fontFamily: HU.mono, fontSize: 9, letterSpacing: .4 }}>
                       {r.tags[0]}
                     </div>
                   )}

@@ -55,10 +55,10 @@ export default function AuthPage() {
       {/* Hero */}
       <div style={{ position: 'relative', height: 280, overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(100% 80% at 50% 20%, ${HU.leaf}33, transparent), linear-gradient(180deg, ${HU.creamWarm}, ${HU.cream})` }} />
-        <div style={{ position: 'absolute', top: 60, left: 30, width: 140, height: 140, borderRadius: '50%', overflow: 'hidden', boxShadow: '0 20px 60px rgba(30,58,95,.15)' }}>
+        <div style={{ position: 'absolute', top: 60, left: 30, width: 140, height: 140, borderRadius: '50%', overflow: 'hidden', boxShadow: '0 20px 60px rgba(60,64,67,.15)' }}>
           <FoodImg label="bowl" tone="leaf" ratio="1/1" />
         </div>
-        <div style={{ position: 'absolute', top: 40, right: 20, width: 100, height: 100, borderRadius: '50%', overflow: 'hidden', boxShadow: '0 10px 30px rgba(30,58,95,.12)' }}>
+        <div style={{ position: 'absolute', top: 40, right: 20, width: 100, height: 100, borderRadius: '50%', overflow: 'hidden', boxShadow: '0 10px 30px rgba(60,64,67,.12)' }}>
           <FoodImg label="salad" tone="sun" ratio="1/1" />
         </div>
         <div style={{ position: 'absolute', top: 170, right: 60, width: 80, height: 80, borderRadius: '50%', overflow: 'hidden' }}>

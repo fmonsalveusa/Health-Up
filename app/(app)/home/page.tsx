@@ -121,7 +121,7 @@ export default function HomePage() {
             return (
               <div key={d} style={{
                 flex: 1, paddingTop: 10, paddingBottom: 10, borderRadius: 14,
-                background: isToday ? HU.ink : HU.paper, color: isToday ? '#fff' : HU.ink,
+                background: isToday ? HU.primary : HU.paper, color: isToday ? '#fff' : HU.ink,
                 border: isToday ? 'none' : `1px solid ${HU.lineSoft}`, textAlign: 'center',
               }}>
                 <div style={{ fontFamily: HU.sans, fontSize: 10, fontWeight: 600, opacity: .6, letterSpacing: .6 }}>{d}</div>
@@ -149,7 +149,7 @@ export default function HomePage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontFamily: HU.mono, fontSize: 10, color: HU.mute, letterSpacing: .4 }}>
           <span><span style={{ color: HU.ink, fontWeight: 700 }}>{macros.proteinG}g</span> PROT</span>
           <span><span style={{ color: HU.leaf, fontWeight: 700 }}>{macros.carbsG}g</span> CARB</span>
-          <span><span style={{ color: '#B08A3A', fontWeight: 700 }}>{macros.fatG}g</span> GRASA</span>
+          <span><span style={{ color: '#B06000', fontWeight: 700 }}>{macros.fatG}g</span> GRASA</span>
         </div>
       </div>
 
@@ -162,7 +162,7 @@ export default function HomePage() {
           : profile.glp1_dose || 'sin dosis';
         const medName = order?.medication || medLabel(profile.glp1_med || '');
         return (
-          <div style={{ margin: '0 20px 20px', padding: '14px 16px', borderRadius: 20, background: HU.ink, color: '#fff' }}>
+          <div style={{ margin: '0 20px 20px', padding: '14px 16px', borderRadius: 24, background: HU.primary, color: '#fff' }}>
             <a href="/track" style={{ display: 'flex', alignItems: 'center', gap: 12, color: 'inherit', textDecoration: 'none', marginBottom: 12 }}>
               <div style={{ width: 44, height: 44, borderRadius: 12, background: HU.leaf, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Icon name="syringe" size={22} color="#fff" />
@@ -202,7 +202,7 @@ export default function HomePage() {
                 <div style={{ width: 72, height: 72, borderRadius: 12, overflow: 'hidden', flexShrink: 0, position: 'relative' }}>
                   <FoodImg tone={tone} label="" />
                   {m.is_eaten && (
-                    <div style={{ position: 'absolute', inset: 0, background: 'rgba(30,58,95,.65)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ position: 'absolute', inset: 0, background: 'rgba(11,87,208,.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <div style={{ width: 26, height: 26, borderRadius: 13, background: HU.leaf, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <Icon name="check" size={14} color="#fff" stroke={3} />
                       </div>

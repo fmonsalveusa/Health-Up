@@ -253,9 +253,9 @@ export default function ProfilePage() {
                 return (
                   <div key={m.label} onClick={() => { setEditMed(m.value); setEditMedCustom(''); }} style={{
                     padding: '12px 14px', borderRadius: 12, cursor: 'pointer',
-                    background: active ? HU.ink : HU.cream,
+                    background: active ? HU.primary : HU.cream,
                     color: active ? '#fff' : HU.ink,
-                    border: `1px solid ${active ? HU.ink : HU.line}`,
+                    border: `1px solid ${active ? HU.primary : HU.line}`,
                     fontFamily: HU.sans, fontSize: 14, fontWeight: active ? 600 : 400,
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                   }}>
@@ -274,9 +274,9 @@ export default function ProfilePage() {
                     {(DOSE_OPTIONS[editMed] || []).map(d => (
                       <div key={d} onClick={() => setEditDose(d)} style={{
                         padding: '8px 14px', borderRadius: 10, cursor: 'pointer',
-                        background: editDose === d ? HU.ink : HU.cream,
+                        background: editDose === d ? HU.primary : HU.cream,
                         color: editDose === d ? '#fff' : HU.ink,
-                        border: `1px solid ${editDose === d ? HU.ink : HU.line}`,
+                        border: `1px solid ${editDose === d ? HU.primary : HU.line}`,
                         fontFamily: HU.mono, fontSize: 13, fontWeight: 600,
                       }}>{d}</div>
                     ))}

@@ -121,7 +121,7 @@ export default function RecipeDetailPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 120 }}>
           {steps.map((step, i) => (
             <div key={i} style={{ display: 'flex', gap: 12 }}>
-              <div style={{ width: 28, height: 28, borderRadius: 14, background: HU.ink, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: HU.display, fontSize: 13, fontWeight: 500, flexShrink: 0 }}>{i + 1}</div>
+              <div style={{ width: 28, height: 28, borderRadius: 14, background: HU.primary, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: HU.display, fontSize: 13, fontWeight: 500, flexShrink: 0 }}>{i + 1}</div>
               <div style={{ flex: 1, fontFamily: HU.sans, fontSize: 13, color: HU.ink, lineHeight: 1.5, paddingTop: 4 }}>{step}</div>
             </div>
           ))}

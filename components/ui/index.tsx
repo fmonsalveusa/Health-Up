@@ -71,10 +71,11 @@ interface BtnProps {
 
 const SIZE_MAP = { sm: { h: 36, px: 14, fs: 13 }, md: { h: 48, px: 18, fs: 15 }, lg: { h: 56, px: 22, fs: 16 } };
 const VAR_MAP = {
-  primary: { bg: HU.ink, color: '#fff', border: 'none' },
-  secondary: { bg: HU.paper, color: HU.ink, border: `1px solid ${HU.line}` },
+  // Estilos de botón Material 3: filled, outlined, tonal (éxito) y text
+  primary: { bg: HU.primary, color: '#fff', border: 'none' },
+  secondary: { bg: 'transparent', color: HU.primary, border: `1px solid ${HU.dim}` },
   leaf: { bg: HU.leaf, color: '#fff', border: 'none' },
-  ghost: { bg: 'transparent', color: HU.ink, border: 'none' },
+  ghost: { bg: 'transparent', color: HU.primary, border: 'none' },
 };
 
 export function Btn({ children, variant = 'primary', size = 'md', icon, onClick, disabled, loading, className, type = 'button', style }: BtnProps) {
@@ -85,7 +86,7 @@ export function Btn({ children, variant = 'primary', size = 'md', icon, onClick,
       style={{
         height: s.h, padding: `0 ${s.px}px`, borderRadius: s.h / 2,
         background: v.bg, color: v.color, border: v.border,
-        fontFamily: HU.sans, fontSize: s.fs, fontWeight: 600, letterSpacing: -0.1,
+        fontFamily: HU.sans, fontSize: s.fs, fontWeight: 500, letterSpacing: 0.1,
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
         cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1,
         whiteSpace: 'nowrap', WebkitTapHighlightColor: 'transparent', ...style,
@@ -129,7 +130,7 @@ export function Ring({ size = 60, stroke = 6, value = 0.6, color = HU.leaf, trac
 export function MacroBar({ p = 30, c = 40, f = 30, h = 6 }: { p?: number; c?: number; f?: number; h?: number }) {
   return (
     <div style={{ display: 'flex', width: '100%', height: h, borderRadius: h, overflow: 'hidden', background: HU.lineSoft }}>
-      <div style={{ width: `${p}%`, background: HU.ink, transition: 'width 0.4s' }} />
+      <div style={{ width: `${p}%`, background: HU.primary, transition: 'width 0.4s' }} />
       <div style={{ width: `${c}%`, background: HU.leaf, transition: 'width 0.4s' }} />
       <div style={{ width: `${f}%`, background: HU.sun, transition: 'width 0.4s' }} />
     </div>
@@ -174,13 +175,14 @@ export function Chip({ children, active = false, onClick, style = {} }: {
   children: React.ReactNode; active?: boolean; onClick?: () => void; style?: React.CSSProperties;
 }) {
   return (
+    // Filter chip Material 3: seleccionado = fondo tonal azul con ✓
     <div onClick={onClick} style={{
-      display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 100,
-      background: active ? HU.ink : 'transparent', color: active ? '#fff' : HU.ink,
-      border: `1px solid ${active ? HU.ink : HU.line}`,
-      fontFamily: HU.sans, fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap',
+      display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: active ? '0 14px 0 10px' : '0 14px', borderRadius: 8,
+      background: active ? HU.primaryContainer : 'transparent', color: active ? HU.onPrimaryContainer : HU.mute,
+      border: `1px solid ${active ? HU.primaryContainer : HU.line}`,
+      fontFamily: HU.sans, fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap',
       cursor: onClick ? 'pointer' : 'default', ...style,
-    }}>{children}</div>
+    }}>{active && onClick && <Icon name="check" size={16} color={HU.onPrimaryContainer} stroke={2.2} />}{children}</div>
   );
 }
 
@@ -198,21 +200,25 @@ export function TabBar({ active = 'home' }: { active?: string }) {
     <nav style={{
       position: 'fixed', left: 0, right: 0, bottom: 0, height: 82,
       paddingBottom: 'env(safe-area-inset-bottom, 16px)',
-      background: 'rgba(255,255,255,.92)',
-      backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
-      borderTop: `1px solid ${HU.lineSoft}`,
+      background: HU.creamWarm,
       display: 'flex', justifyContent: 'space-around', alignItems: 'flex-start',
-      paddingTop: 10, zIndex: 40,
+      paddingTop: 12, zIndex: 40,
     }}>
-      {TABS.map(t => (
-        <a key={t.k} href={t.href} style={{
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flex: 1,
-          textDecoration: 'none', WebkitTapHighlightColor: 'transparent',
-        }}>
-          <Icon name={t.icon} size={22} color={t.k === active ? HU.ink : HU.dim} stroke={t.k === active ? 2.2 : 1.6} />
-          <div style={{ fontFamily: HU.sans, fontSize: 10, fontWeight: t.k === active ? 600 : 500, color: t.k === active ? HU.ink : HU.dim }}>{t.label}</div>
-        </a>
-      ))}
+      {/* Barra de navegación Material 3: el ícono activo va dentro de una "píldora" tonal */}
+      {TABS.map(t => {
+        const on = t.k === active;
+        return (
+          <a key={t.k} href={t.href} style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flex: 1,
+            textDecoration: 'none', WebkitTapHighlightColor: 'transparent',
+          }}>
+            <div style={{ width: 56, height: 32, borderRadius: 16, background: on ? HU.primaryContainer : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background .2s' }}>
+              <Icon name={t.icon} size={22} color={on ? HU.onPrimaryContainer : HU.mute} stroke={on ? 2.2 : 1.8} />
+            </div>
+            <div style={{ fontFamily: HU.sans, fontSize: 12, fontWeight: on ? 700 : 500, color: on ? HU.ink : HU.mute }}>{t.label}</div>
+          </a>
+        );
+      })}
     </nav>
   );
 }

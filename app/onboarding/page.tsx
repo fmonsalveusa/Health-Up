@@ -71,7 +71,7 @@ export default function OnboardingPage() {
   const ProgressBar = () => (
     <div style={{ display: 'flex', gap: 6, marginBottom: 32 }}>
       {Array.from({ length: totalSteps }).map((_, i) => (
-        <div key={i} style={{ flex: 1, height: 3, borderRadius: 2, background: i <= step ? HU.ink : HU.lineSoft, transition: 'background 0.3s' }} />
+        <div key={i} style={{ flex: 1, height: 3, borderRadius: 2, background: i <= step ? HU.primary : HU.lineSoft, transition: 'background 0.3s' }} />
       ))}
     </div>
   );
@@ -105,8 +105,8 @@ export default function OnboardingPage() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 28 }}>
           {(['F', 'M'] as const).map(s => (
             <div key={s} onClick={() => setSex(s)} style={{
-              padding: '18px 16px', borderRadius: 16, background: sex === s ? HU.ink : HU.paper,
-              color: sex === s ? '#fff' : HU.ink, border: `1px solid ${sex === s ? HU.ink : HU.line}`,
+              padding: '18px 16px', borderRadius: 16, background: sex === s ? HU.primary : HU.paper,
+              color: sex === s ? '#fff' : HU.ink, border: `1px solid ${sex === s ? HU.primary : HU.line}`,
               fontFamily: HU.sans, fontWeight: 600, fontSize: 15, cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             }}>
@@ -231,8 +231,8 @@ export default function OnboardingPage() {
             const active = med === m.value;
             return (
               <div key={m.value} onClick={() => setMed(m.value)} style={{
-                padding: '14px 16px', borderRadius: 16, background: active ? HU.ink : HU.paper,
-                border: `1px solid ${active ? HU.ink : HU.line}`, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer',
+                padding: '14px 16px', borderRadius: 16, background: active ? HU.primary : HU.paper,
+                border: `1px solid ${active ? HU.primary : HU.line}`, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer',
               }}>
                 <div style={{ width: 38, height: 38, borderRadius: 10, background: active ? HU.leaf : HU.creamWarm, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <Icon name="syringe" size={18} color={active ? '#fff' : HU.ink} stroke={2} />
