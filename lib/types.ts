@@ -91,6 +91,7 @@ export interface DosingOrder {
   max_units: number | null;
   max_mg: number | null;
   max_weeks: number;
+  vial_units: number | null;      // unidades totales del vial (migración 004)
   instructions: string | null;
   is_current: boolean;
   ordered_at: string;

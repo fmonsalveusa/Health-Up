@@ -17,6 +17,12 @@ const GLP1_OPTIONS: { name: string; sub: string; value: string }[] = [
   { name: 'Aún no estoy en GLP-1', sub: 'Plan preventivo', value: 'none' },
 ];
 
+// Dosis inicial habitual de cada medicamento (se ajusta luego en Perfil)
+const START_DOSE: Record<string, string> = {
+  ozempic: '0.25 mg', wegovy: '0.25 mg', mounjaro: '2.5 mg',
+  compounded_tirzepatide: '2.5 mg', saxenda: '0.6 mg',
+};
+
 // Conversión imperial ↔ métrico
 const ftInToCm = (ft: number, inches: number) => Math.round((ft * 30.48) + (inches * 2.54));
 
@@ -49,7 +55,7 @@ export default function OnboardingPage() {
       sex, age, height_cm: heightCm,
       current_weight: weightKg, target_weight: targetKg,
       glp1_med: med === 'other' ? customMed : med,
-      glp1_dose: med !== 'none' ? '0.25 mg' : null,
+      glp1_dose: START_DOSE[med] ?? null,
       onboarding_done: true,
       updated_at: new Date().toISOString(),
     }).eq('id', user.id);

@@ -7,6 +7,9 @@ import { Icon, Btn, Chip, TabBar } from '@/components/ui';
 import { kgToLbs, lbsToKg } from '@/lib/nutrition';
 import type { Profile, WeightLog, DoseLog, DosingOrder } from '@/lib/types';
 import { localDateStr, parseLocalDate } from '@/lib/dates';
+import { getWeekNumber, calcDoseForWeek, calcMgForUnits } from '@/lib/dosing';
+import { DoseStatus } from '@/components/DoseStatus';
+import { WeightChart } from '@/components/WeightChart';
 
 const SIDE_EFFECTS = [
   'Náusea', 'Saciedad temprana', 'Fatiga', 'Reflujo',
@@ -14,82 +17,6 @@ const SIDE_EFFECTS = [
 ];
 
 type Tab = 'registro' | 'historial' | 'orden';
-
-// ── Weight Line Chart ──
-function WeightChart({ logs }: { logs: WeightLog[] }) {
-  if (logs.length < 2) return null;
-  const data = logs.slice(0, 12).reverse().map((l, i, arr) => {
-    const lbs = kgToLbs(l.weight);
-    const prevLbs = i > 0 ? kgToLbs(arr[i - 1].weight) : lbs;
-    const pctChange = prevLbs > 0 && i > 0 ? ((lbs - prevLbs) / prevLbs) * 100 : 0;
-    return { lbs, date: l.logged_at, pct: Math.round(pctChange * 10) / 10 };
-  });
-
-  const values = data.map(d => d.lbs);
-  const min = Math.min(...values) - 2;
-  const max = Math.max(...values) + 2;
-  const range = max - min || 1;
-
-  const W = 340, H = 90, padX = 10, padY = 14;
-  const chartW = W - padX * 2, chartH = H - padY * 2;
-
-  const points = data.map((d, i) => ({
-    x: padX + (i / (data.length - 1)) * chartW,
-    y: padY + (1 - (d.lbs - min) / range) * chartH,
-    ...d,
-  }));
-
-  // Build SVG path
-  const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
-  const areaD = pathD + ` L${points[points.length - 1].x},${H - 5} L${points[0].x},${H - 5} Z`;
-
-  return (
-    <svg viewBox={`0 0 ${W} ${H + 20}`} style={{ width: '100%', maxHeight: 140 }}>
-      <defs>
-        <linearGradient id="wg" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor={HU.sun} stopOpacity="0.35" />
-          <stop offset="1" stopColor={HU.sun} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      {/* Grid lines */}
-      {[0, 0.5, 1].map((f, i) => {
-        const y = padY + (1 - f) * chartH;
-        const val = Math.round(min + f * range);
-        return (
-          <g key={i}>
-            <line x1={padX} y1={y} x2={W - padX} y2={y} stroke="rgba(255,255,255,.1)" strokeWidth="0.5" />
-            <text x={W - 4} y={y + 3} textAnchor="end" fontSize="8" fill="rgba(255,255,255,.4)" fontFamily="monospace">{val}</text>
-          </g>
-        );
-      })}
-      {/* Area fill */}
-      <path d={areaD} fill="url(#wg)" />
-      {/* Line */}
-      <path d={pathD} fill="none" stroke={HU.sun} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-      {/* Points + labels */}
-      {points.map((p, i) => (
-        <g key={i}>
-          <circle cx={p.x} cy={p.y} r={i === points.length - 1 ? 4 : 2.5}
-            fill={i === points.length - 1 ? HU.sun : '#fff'} stroke={HU.sun} strokeWidth="1.5" />
-          {/* % change label */}
-          {i > 0 && p.pct !== 0 && (
-            <g>
-              <rect x={p.x - 14} y={p.y - 15} width="28" height="11" rx="3"
-                fill={p.pct < 0 ? HU.leaf : p.pct > 0 ? HU.coral : HU.sun} />
-              <text x={p.x} y={p.y - 7} textAnchor="middle" fontSize="7" fill="#fff" fontWeight="700" fontFamily="monospace">
-                {p.pct > 0 ? '+' : ''}{p.pct}%
-              </text>
-            </g>
-          )}
-          {/* Date label */}
-          <text x={p.x} y={H + 12} textAnchor="middle" fontSize="7" fill="rgba(255,255,255,.45)" fontFamily="monospace">
-            {parseLocalDate(p.date).toLocaleDateString('es', { day: 'numeric', month: 'short' })}
-          </text>
-        </g>
-      ))}
-    </svg>
-  );
-}
 
 // ── Syringe SVG (for injection form only) ──
 function SyringeVisual({ units, maxUnits = 100 }: { units: number; maxUnits?: number }) {
@@ -153,6 +80,9 @@ export default function TrackPage() {
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
+  const [orderVialUnits, setOrderVialUnits] = useState('');
+  const [editingVial, setEditingVial] = useState(false);
+  const [vialInput, setVialInput] = useState('');
 
   const supabase = createClient();
 
@@ -163,9 +93,12 @@ export default function TrackPage() {
     if (!user) return;
     const { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).single();
     setProfile(prof);
-    const { data: wl } = await supabase.from('weight_logs').select('*').eq('user_id', user.id).order('logged_at', { ascending: false }).limit(52);
+    // Todo el historial de peso (para el rango "Todo" del gráfico)
+    const { data: wl } = await supabase.from('weight_logs').select('*').eq('user_id', user.id)
+      .order('logged_at', { ascending: false }).order('created_at', { ascending: false }).limit(1000);
     setLogs(wl || []);
-    const { data: dl } = await supabase.from('dose_logs').select('*').eq('user_id', user.id).order('taken_at', { ascending: false }).limit(52);
+    // Suficientes dosis para sumar todo lo usado de un vial
+    const { data: dl } = await supabase.from('dose_logs').select('*').eq('user_id', user.id).order('taken_at', { ascending: false }).limit(200);
     setDoseLogs(dl || []);
     const { data: orders } = await supabase.from('dosing_orders').select('*').eq('user_id', user.id).order('ordered_at', { ascending: false });
     setAllOrders(orders || []);
@@ -174,18 +107,13 @@ export default function TrackPage() {
     if (cur) setInjUnits(calcDoseForWeek(cur, getWeekNumber(cur)));
   }
 
-  function getWeekNumber(order: DosingOrder): number {
-    const start = parseLocalDate(order.ordered_at);
-    return Math.max(1, Math.floor((Date.now() - start.getTime()) / (1000 * 60 * 60 * 24 * 7)) + 1);
-  }
-  function calcDoseForWeek(order: DosingOrder, week: number): number {
-    return Math.min(order.start_units + (order.increment_units || 0) * (week - 1), order.max_units || 999);
-  }
-  function calcMgForUnits(order: DosingOrder, units: number): number {
-    // start_mg / start_units es la relación exacta; concentration_mg_per_unit puede venir redondeada
-    if (order.start_mg && order.start_units) return Math.round(units * (order.start_mg / order.start_units) * 100) / 100;
-    if (order.concentration_mg_per_unit) return Math.round(units * order.concentration_mg_per_unit * 100) / 100;
-    return 0;
+  async function saveVialUnits() {
+    if (!currentOrder) return;
+    const v = parseInt(vialInput);
+    if (!v || v <= 0) { showError('Ingresa las unidades totales del vial.'); return; }
+    const { error } = await supabase.from('dosing_orders').update({ vial_units: v }).eq('id', currentOrder.id);
+    if (error) { showError(`No se pudo guardar el vial: ${error.message}`); return; }
+    setEditingVial(false); setVialInput(''); loadData();
   }
 
   // mg de una dosis ya registrada: usa la orden con la que se registró, o su propia relación mg/unidad
@@ -314,6 +242,8 @@ export default function TrackPage() {
       max_units: parseInt(orderMaxUnits) || null, max_mg: parseFloat(orderMaxMg) || null,
       max_weeks: parseInt(orderMaxWeeks) || 8, instructions: orderInstructions || null, is_current: true,
       ordered_at: localDateStr(),
+      // sólo se envía si se llenó, para no fallar si la migración 004 no se ha corrido
+      ...(parseInt(orderVialUnits) > 0 ? { vial_units: parseInt(orderVialUnits) } : {}),
     });
     if (orderErr) {
       setSavingOrder(false);
@@ -322,7 +252,7 @@ export default function TrackPage() {
     }
     setOrderNum(''); setOrderStartUnits(''); setOrderStartMg('');
     setOrderIncUnits(''); setOrderIncMg(''); setOrderMaxUnits('');
-    setOrderMaxMg(''); setOrderInstructions('');
+    setOrderMaxMg(''); setOrderInstructions(''); setOrderVialUnits('');
     setSavingOrder(false); setActiveTab('registro'); loadData();
   }
 
@@ -336,6 +266,11 @@ export default function TrackPage() {
   const targetLbs = kgToLbs(profile.target_weight || 0);
   const startLbs = logs.length > 0 ? kgToLbs(logs[logs.length - 1].weight) : currentLbs;
   const totalLoss = startLbs - currentLbs;
+  const totalLossPct = startLbs > 0 ? Math.round((totalLoss / startLbs) * 1000) / 10 : 0;
+  // Avance hacia la meta: de peso inicial a meta
+  const goalProgress = startLbs > targetLbs && targetLbs > 0
+    ? Math.min(1, Math.max(0, (startLbs - currentLbs) / (startLbs - targetLbs)))
+    : 0;
   const remaining = currentLbs - targetLbs;
   const weekNum = currentOrder ? getWeekNumber(currentOrder) : 0;
   const currentDoseUnits = currentOrder ? calcDoseForWeek(currentOrder, weekNum) : 0;
@@ -372,12 +307,21 @@ export default function TrackPage() {
             </div>
           </div>
           <div style={{ textAlign: 'right' }}>
-            {totalLoss > 0 && <div style={{ padding: '4px 10px', borderRadius: 100, background: HU.leaf, fontFamily: HU.mono, fontSize: 11, fontWeight: 700, marginBottom: 4 }}>−{totalLoss.toFixed(1)} lbs</div>}
-            <div style={{ fontFamily: HU.mono, fontSize: 10, opacity: .5 }}>Meta: {targetLbs} lbs</div>
+            {totalLoss > 0 && <div style={{ padding: '4px 10px', borderRadius: 100, background: HU.leaf, fontFamily: HU.mono, fontSize: 11, fontWeight: 700, marginBottom: 4 }}>−{totalLoss.toFixed(1)} lbs · −{totalLossPct}%</div>}
+            <div style={{ fontFamily: HU.mono, fontSize: 10, opacity: .5 }}>Inicio: {startLbs} · Meta: {targetLbs} lbs</div>
             {remaining > 0 && <div style={{ fontFamily: HU.sans, fontSize: 11, opacity: .5, marginTop: 2 }}>Faltan {remaining.toFixed(1)}</div>}
           </div>
         </div>
-        <WeightChart logs={logs} />
+        {/* Avance hacia la meta */}
+        {goalProgress > 0 && (
+          <div style={{ padding: '0 4px', marginBottom: 10 }}>
+            <div style={{ height: 6, borderRadius: 3, background: 'rgba(255,255,255,.12)', overflow: 'hidden' }}>
+              <div style={{ width: `${goalProgress * 100}%`, height: '100%', background: HU.leaf, transition: 'width .4s' }} />
+            </div>
+            <div style={{ fontFamily: HU.mono, fontSize: 9, opacity: .55, marginTop: 4 }}>{Math.round(goalProgress * 100)}% del camino a tu meta</div>
+          </div>
+        )}
+        <WeightChart logs={logs} targetLbs={targetLbs} />
       </div>
 
       {/* ── Current order card (no syringe) ── */}
@@ -399,6 +343,23 @@ export default function TrackPage() {
             <div style={{ marginTop: 10, padding: '8px 12px', borderRadius: 10, background: HU.cream, fontFamily: HU.sans, fontSize: 11, color: HU.mute, lineHeight: 1.5 }}>
               {currentOrder.instructions}
             </div>
+          )}
+          <div style={{ marginTop: 10 }}>
+            <DoseStatus order={currentOrder} doseLogs={doseLogs} medication={currentOrder.medication} />
+          </div>
+          {/* Tamaño del vial: agregar o corregir */}
+          {editingVial ? (
+            <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input type="number" autoFocus placeholder="Unidades totales (ej: 300)" value={vialInput} onChange={e => setVialInput(e.target.value)}
+                style={{ ...inputStyle, height: 40, fontSize: 14 }} />
+              <Btn variant="secondary" size="sm" onClick={() => { setEditingVial(false); setVialInput(''); }}>✕</Btn>
+              <Btn variant="leaf" size="sm" icon="check" onClick={saveVialUnits}>OK</Btn>
+            </div>
+          ) : (
+            <button type="button" onClick={() => { setEditingVial(true); setVialInput(currentOrder.vial_units ? String(currentOrder.vial_units) : ''); }}
+              style={{ marginTop: 8, padding: 0, border: 'none', background: 'none', cursor: 'pointer', fontFamily: HU.sans, fontSize: 12, fontWeight: 600, color: HU.leafDeep }}>
+              {currentOrder.vial_units ? 'Editar unidades del vial' : '+ Agregar unidades del vial para saber cuántas dosis quedan'}
+            </button>
           )}
         </div>
       )}
@@ -731,7 +692,10 @@ export default function TrackPage() {
               <div><div style={labelStyle}>Máximo (units)</div><input type="number" placeholder="85" value={orderMaxUnits} onChange={e => setOrderMaxUnits(e.target.value)} style={inputStyle} /></div>
               <div><div style={labelStyle}>Máximo (mg)</div><input type="number" step="0.01" placeholder="15" value={orderMaxMg} onChange={e => setOrderMaxMg(e.target.value)} style={inputStyle} /></div>
             </div>
-            <div style={{ marginBottom: 14 }}><div style={labelStyle}>Semanas máximas</div><input type="number" placeholder="8" value={orderMaxWeeks} onChange={e => setOrderMaxWeeks(e.target.value)} style={inputStyle} /></div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+              <div><div style={labelStyle}>Semanas máximas</div><input type="number" placeholder="8" value={orderMaxWeeks} onChange={e => setOrderMaxWeeks(e.target.value)} style={inputStyle} /></div>
+              <div><div style={labelStyle}>Unidades del vial</div><input type="number" placeholder="300" value={orderVialUnits} onChange={e => setOrderVialUnits(e.target.value)} style={inputStyle} /></div>
+            </div>
             <div style={{ marginBottom: 18 }}><div style={labelStyle}>Instrucciones completas</div>
               <textarea placeholder="Inject 82 Units (14.47mg) subcutaneously once a week..." value={orderInstructions} onChange={e => setOrderInstructions(e.target.value)} rows={4}
                 style={{ ...inputStyle, height: 'auto', padding: '12px 14px', resize: 'none' as const }} />

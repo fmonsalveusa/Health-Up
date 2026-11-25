@@ -5,11 +5,15 @@ import { createClient } from '@/lib/supabase';
 import { HU } from '@/lib/design';
 import { Icon, Btn, Ring, MacroBar, FoodImg, TabBar } from '@/components/ui';
 import { calculateTDEE, calculateTargetKcal, calculateMacros } from '@/lib/nutrition';
-import { medLabel, type Profile, type PlannedMeal, type Recipe } from '@/lib/types';
+import { medLabel, type Profile, type PlannedMeal, type Recipe, type DoseLog, type DosingOrder } from '@/lib/types';
 import { localDateStr } from '@/lib/dates';
+import { calcDoseForWeek, calcMgForUnits, getWeekNumber } from '@/lib/dosing';
+import { DoseStatus } from '@/components/DoseStatus';
 
 export default function HomePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [order, setOrder] = useState<DosingOrder | null>(null);
+  const [doseLogs, setDoseLogs] = useState<DoseLog[]>([]);
   const [todayMeals, setTodayMeals] = useState<(PlannedMeal & { recipe?: Recipe })[]>([]);
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
@@ -22,6 +26,14 @@ export default function HomePage() {
       // Perfil
       const { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).single();
       setProfile(prof);
+
+      // Orden actual + dosis (para próxima dosis e inventario del vial)
+      const [{ data: ord }, { data: dl }] = await Promise.all([
+        supabase.from('dosing_orders').select('*').eq('user_id', user.id).eq('is_current', true).limit(1),
+        supabase.from('dose_logs').select('*').eq('user_id', user.id).order('taken_at', { ascending: false }).limit(100),
+      ]);
+      setOrder(ord?.[0] || null);
+      setDoseLogs(dl || []);
 
       // Comidas de hoy (planned_meals con receta) — si hay plan para esta semana
       const today = new Date();
@@ -142,19 +154,33 @@ export default function HomePage() {
       </div>
 
       {/* GLP-1 dose card */}
-      {profile.glp1_med && profile.glp1_med !== 'none' && (
-        <div style={{ margin: '0 20px 20px', padding: '14px 16px', borderRadius: 20, background: HU.ink, color: '#fff', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 44, height: 44, borderRadius: 12, background: HU.leaf, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="syringe" size={22} color="#fff" />
+      {((profile.glp1_med && profile.glp1_med !== 'none') || order) && (() => {
+        // Con orden activa, la dosis sale de la orden (semana actual); si no, la del perfil
+        const units = order ? calcDoseForWeek(order, getWeekNumber(order)) : null;
+        const doseText = order && units != null
+          ? `${units}u · ${calcMgForUnits(order, units)} mg`
+          : profile.glp1_dose || 'sin dosis';
+        const medName = order?.medication || medLabel(profile.glp1_med || '');
+        return (
+          <div style={{ margin: '0 20px 20px', padding: '14px 16px', borderRadius: 20, background: HU.ink, color: '#fff' }}>
+            <a href="/track" style={{ display: 'flex', alignItems: 'center', gap: 12, color: 'inherit', textDecoration: 'none', marginBottom: 12 }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: HU.leaf, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name="syringe" size={22} color="#fff" />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: HU.sans, fontSize: 11, opacity: .65, textTransform: 'uppercase', letterSpacing: .6 }}>
+                  Tu tratamiento{order ? ` · Semana ${getWeekNumber(order)}` : ''}
+                </div>
+                <div style={{ fontFamily: HU.display, fontSize: 18, fontWeight: 500, marginTop: 2 }}>
+                  {medName} · {doseText}
+                </div>
+              </div>
+              <Icon name="chev" size={16} color="rgba(255,255,255,.5)" />
+            </a>
+            <DoseStatus order={order} doseLogs={doseLogs} medication={medName} dark />
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: HU.sans, fontSize: 11, opacity: .65, textTransform: 'uppercase', letterSpacing: .6 }}>Tu tratamiento</div>
-            <div style={{ fontFamily: HU.display, fontSize: 18, fontWeight: 500, marginTop: 2 }}>
-              {medLabel(profile.glp1_med)} · {profile.glp1_dose || '0.25 mg'}
-            </div>
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Today meals */}
       <div style={{ padding: '0 20px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>

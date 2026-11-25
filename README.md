@@ -39,7 +39,7 @@ Edita `.env.local` con tus datos de Supabase (Settings → API):
 2. Pega TODO el contenido de `supabase/schema.sql`
 3. Click **Run**
 4. Deberías ver: profiles, weight_logs, recipes, meal_plans, planned_meals, dose_logs, side_effects
-5. Repite con `supabase/002_dosing_orders.sql` y luego `supabase/003_weight_precision.sql`
+5. Repite con `supabase/002_dosing_orders.sql`, `supabase/003_weight_precision.sql` y `supabase/004_vial_units.sql`
 
 ### 5. Configurar Auth
 
