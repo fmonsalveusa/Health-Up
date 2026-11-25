@@ -55,11 +55,23 @@ export interface NextDose {
   mg: number | null;
 }
 
-/** Próxima dosis semanal: 7 días después de la última registrada. */
+/**
+ * Próxima dosis semanal.
+ * - Si la última inyección es de esta orden (o posterior a su inicio): 7 días después.
+ * - Si la orden empieza después de la última inyección (orden nueva): el día de inicio de la orden.
+ */
 export function getNextDose(lastDose: DoseLog | null, order: DosingOrder | null): NextDose | null {
-  if (!lastDose) return null;
-  const date = doseDate(lastDose);
-  date.setDate(date.getDate() + 7);
+  const start = order ? parseLocalDate(order.ordered_at) : null;
+  const last = lastDose ? doseDate(lastDose) : null;
+  let date: Date;
+  if (last && (!start || last.getTime() >= start.getTime())) {
+    date = new Date(last);
+    date.setDate(date.getDate() + 7);
+  } else if (start) {
+    date = new Date(start);
+  } else {
+    return null;
+  }
   const daysUntil = daysBetween(new Date(), date);
   const label =
     daysUntil === 0 ? 'Hoy' :
