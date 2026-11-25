@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { createClient } from '@/lib/supabase';
 import { HU } from '@/lib/design';
 import { Btn, Icon } from '@/components/ui';
+import { lbsToKg } from '@/lib/nutrition';
+import { localDateStr } from '@/lib/dates';
 
 const GLP1_OPTIONS: { name: string; sub: string; value: string }[] = [
   { name: 'Ozempic®', sub: 'Semaglutida', value: 'ozempic' },
@@ -16,7 +18,6 @@ const GLP1_OPTIONS: { name: string; sub: string; value: string }[] = [
 ];
 
 // Conversión imperial ↔ métrico
-const lbsToKg = (lbs: number) => Math.round(lbs * 0.453592 * 10) / 10;
 const ftInToCm = (ft: number, inches: number) => Math.round((ft * 30.48) + (inches * 2.54));
 
 export default function OnboardingPage() {
@@ -37,7 +38,7 @@ export default function OnboardingPage() {
   async function finish() {
     setSaving(true);
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) { setSaving(false); return; }
 
     // Convertir a métrico para guardar en DB
     const weightKg = lbsToKg(weightLbs);
@@ -55,7 +56,7 @@ export default function OnboardingPage() {
 
     // Log peso inicial (en kg)
     await supabase.from('weight_logs').insert({
-      user_id: user.id, weight: weightKg,
+      user_id: user.id, weight: weightKg, logged_at: localDateStr(),
     });
 
     window.location.href = '/home';

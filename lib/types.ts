@@ -1,6 +1,17 @@
 // Tipos que reflejan nuestro schema de Supabase
 
-export type GLP1Med = 'ozempic' | 'wegovy' | 'mounjaro' | 'saxenda' | 'none';
+export type GLP1Med = 'ozempic' | 'wegovy' | 'mounjaro' | 'compounded_tirzepatide' | 'saxenda' | 'none';
+
+const GLP1_LABELS: Record<string, string> = {
+  ozempic: 'Ozempic',
+  wegovy: 'Wegovy',
+  mounjaro: 'Mounjaro',
+  compounded_tirzepatide: 'Compounded Tirzepatide',
+  saxenda: 'Saxenda',
+};
+
+// Nombre legible; valores libres (opción "Otro" del onboarding) se muestran tal cual
+export const medLabel = (med: string) => GLP1_LABELS[med] ?? med;
 
 export type MealType = 'desayuno' | 'almuerzo' | 'snack' | 'cena';
 

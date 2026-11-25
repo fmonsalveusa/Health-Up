@@ -5,7 +5,8 @@ import { createClient } from '@/lib/supabase';
 import { HU } from '@/lib/design';
 import { Icon, Btn, Ring, MacroBar, FoodImg, TabBar } from '@/components/ui';
 import { calculateTDEE, calculateTargetKcal, calculateMacros } from '@/lib/nutrition';
-import type { Profile, PlannedMeal, Recipe } from '@/lib/types';
+import { medLabel, type Profile, type PlannedMeal, type Recipe } from '@/lib/types';
+import { localDateStr } from '@/lib/dates';
 
 export default function HomePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -27,7 +28,7 @@ export default function HomePage() {
       const dayOfWeek = (today.getDay() + 6) % 7; // 0=lun
       const monday = new Date(today);
       monday.setDate(today.getDate() - dayOfWeek);
-      const weekStart = monday.toISOString().split('T')[0];
+      const weekStart = localDateStr(monday);
 
       const { data: plan } = await supabase
         .from('meal_plans')
@@ -149,7 +150,7 @@ export default function HomePage() {
           <div style={{ flex: 1 }}>
             <div style={{ fontFamily: HU.sans, fontSize: 11, opacity: .65, textTransform: 'uppercase', letterSpacing: .6 }}>Tu tratamiento</div>
             <div style={{ fontFamily: HU.display, fontSize: 18, fontWeight: 500, marginTop: 2 }}>
-              {profile.glp1_med.charAt(0).toUpperCase() + profile.glp1_med.slice(1)} · {profile.glp1_dose || '0.25 mg'}
+              {medLabel(profile.glp1_med)} · {profile.glp1_dose || '0.25 mg'}
             </div>
           </div>
         </div>

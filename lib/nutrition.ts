@@ -1,7 +1,8 @@
 import type { TDEEInput } from './types';
 
 // Conversiones
-export const kgToLbs = (kg: number) => Math.round(kg * 2.20462);
+// 1 decimal en lbs; requiere pesos guardados con 2 decimales en kg (ver supabase/003_weight_precision.sql)
+export const kgToLbs = (kg: number) => Math.round(kg * 2.20462 * 10) / 10;
 export const lbsToKg = (lbs: number) => Math.round(lbs * 0.453592 * 100) / 100;
 export const cmToFtIn = (cm: number): [number, number] => {
   const totalIn = cm / 2.54;

@@ -6,6 +6,7 @@ import { HU } from '@/lib/design';
 import { Icon, Btn, Chip, TabBar } from '@/components/ui';
 import { kgToLbs, lbsToKg } from '@/lib/nutrition';
 import type { Profile, WeightLog, DoseLog, DosingOrder } from '@/lib/types';
+import { localDateStr, parseLocalDate } from '@/lib/dates';
 
 const SIDE_EFFECTS = [
   'Náusea', 'Saciedad temprana', 'Fatiga', 'Reflujo',
@@ -82,7 +83,7 @@ function WeightChart({ logs }: { logs: WeightLog[] }) {
           )}
           {/* Date label */}
           <text x={p.x} y={H + 12} textAnchor="middle" fontSize="7" fill="rgba(255,255,255,.45)" fontFamily="monospace">
-            {new Date(p.date).toLocaleDateString('es', { day: 'numeric', month: 'short' })}
+            {parseLocalDate(p.date).toLocaleDateString('es', { day: 'numeric', month: 'short' })}
           </text>
         </g>
       ))}
@@ -151,6 +152,7 @@ export default function TrackPage() {
   const [savingOrder, setSavingOrder] = useState(false);
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState('');
 
   const supabase = createClient();
 
@@ -173,35 +175,57 @@ export default function TrackPage() {
   }
 
   function getWeekNumber(order: DosingOrder): number {
-    const start = new Date(order.ordered_at);
+    const start = parseLocalDate(order.ordered_at);
     return Math.max(1, Math.floor((Date.now() - start.getTime()) / (1000 * 60 * 60 * 24 * 7)) + 1);
   }
   function calcDoseForWeek(order: DosingOrder, week: number): number {
     return Math.min(order.start_units + (order.increment_units || 0) * (week - 1), order.max_units || 999);
   }
   function calcMgForUnits(order: DosingOrder, units: number): number {
-    if (order.concentration_mg_per_unit) return Math.round(units * order.concentration_mg_per_unit * 100) / 100;
+    // start_mg / start_units es la relación exacta; concentration_mg_per_unit puede venir redondeada
     if (order.start_mg && order.start_units) return Math.round(units * (order.start_mg / order.start_units) * 100) / 100;
+    if (order.concentration_mg_per_unit) return Math.round(units * order.concentration_mg_per_unit * 100) / 100;
     return 0;
+  }
+
+  // mg de una dosis ya registrada: usa la orden con la que se registró, o su propia relación mg/unidad
+  function calcMgForDose(dose: DoseLog, units: number): number {
+    const order = allOrders.find(o => o.id === dose.order_id) || currentOrder;
+    if (order) return calcMgForUnits(order, units);
+    if (dose.dose_units && dose.dose_mg) return Math.round(units * (dose.dose_mg / dose.dose_units) * 100) / 100;
+    return dose.dose_mg;
+  }
+
+  function showError(msg: string) {
+    setErrorMsg(msg);
+    setTimeout(() => setErrorMsg(''), 6000);
   }
 
   async function saveInjection() {
     if (!profile || !currentOrder) return;
     setSaving(true);
+    setErrorMsg('');
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) { setSaving(false); showError('Tu sesión expiró. Vuelve a iniciar sesión.'); return; }
     const mg = calcMgForUnits(currentOrder, injUnits);
     const weekNum = getWeekNumber(currentOrder);
-    await supabase.from('dose_logs').insert({
+    const today = localDateStr();
+    const { error: doseErr } = await supabase.from('dose_logs').insert({
       user_id: user.id, dose_mg: mg, dose_units: injUnits,
       med_name: currentOrder.medication, order_id: currentOrder.id,
-      week_number: weekNum, scheduled_for: new Date().toISOString().split('T')[0],
+      week_number: weekNum, scheduled_for: today,
       notes: [injEffects.length > 0 ? `Efectos: ${injEffects.join(', ')}` : '', injNotes].filter(Boolean).join(' | ') || null,
     });
+    if (doseErr) {
+      setSaving(false);
+      showError(`No se pudo registrar la inyección: ${doseErr.message}`);
+      return;
+    }
     if (injWeightLbs) {
       const kg = lbsToKg(parseFloat(injWeightLbs));
-      await supabase.from('weight_logs').insert({ user_id: user.id, weight: kg });
-      await supabase.from('profiles').update({ current_weight: kg, updated_at: new Date().toISOString() }).eq('id', user.id);
+      const { error: wErr } = await supabase.from('weight_logs').insert({ user_id: user.id, weight: kg, logged_at: today });
+      if (!wErr) await supabase.from('profiles').update({ current_weight: kg, updated_at: new Date().toISOString() }).eq('id', user.id);
+      else showError(`Inyección guardada, pero no el peso: ${wErr.message}`);
     }
     setInjWeightLbs(''); setInjNotes(''); setInjEffects([]);
     setSaving(false); setShowSuccess(true);
@@ -210,20 +234,17 @@ export default function TrackPage() {
   }
 
   async function deleteDoseLog(id: string) {
-    // Buscar la fecha de la dosis para borrar también el weight_log asociado
+    // Borrar sólo el weight_log que se muestra junto a esta dosis (el mismo que encuentra el historial)
     const dose = doseLogs.find(d => d.id === id);
-    if (dose) {
-      const doseDate = dose.scheduled_for || dose.taken_at?.split('T')[0];
-      if (doseDate) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          await supabase.from('weight_logs').delete()
-            .eq('user_id', user.id)
-            .eq('logged_at', doseDate);
-        }
-      }
+    const doseDate = dose ? dose.scheduled_for || dose.taken_at?.split('T')[0] : null;
+    const linkedWeight = doseDate ? logs.find(l => l.logged_at === doseDate) : null;
+    const { error } = await supabase.from('dose_logs').delete().eq('id', id);
+    if (error) {
+      showError(`No se pudo eliminar: ${error.message}`);
+      setConfirmDeleteId(null);
+      return;
     }
-    await supabase.from('dose_logs').delete().eq('id', id);
+    if (linkedWeight) await supabase.from('weight_logs').delete().eq('id', linkedWeight.id);
     setConfirmDeleteId(null); loadData();
   }
 
@@ -238,15 +259,20 @@ export default function TrackPage() {
     if (!editingId) return;
     setSavingEdit(true);
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setSavingEdit(false); return; }
+    if (!user) { setSavingEdit(false); showError('Tu sesión expiró. Vuelve a iniciar sesión.'); return; }
 
-    // Calcular mg: usar currentOrder si existe, si no, guardar el valor editado directo
-    const mg = currentOrder ? calcMgForUnits(currentOrder, editUnits) : editUnits * 0.18;
-    await supabase.from('dose_logs').update({
+    const editingDose = doseLogs.find(d => d.id === editingId);
+    const mg = editingDose ? calcMgForDose(editingDose, editUnits) : 0;
+    const { error: editErr } = await supabase.from('dose_logs').update({
       dose_units: editUnits,
       dose_mg: mg,
       notes: editNotes || null,
     }).eq('id', editingId);
+    if (editErr) {
+      setSavingEdit(false);
+      showError(`No se pudo guardar: ${editErr.message}`);
+      return;
+    }
 
     // Actualizar peso si fue modificado
     if (editWeight) {
@@ -277,16 +303,23 @@ export default function TrackPage() {
     if (!profile) return;
     setSavingOrder(true);
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) { setSavingOrder(false); showError('Tu sesión expiró. Vuelve a iniciar sesión.'); return; }
     const startU = parseInt(orderStartUnits) || 0, startM = parseFloat(orderStartMg) || null;
-    await supabase.from('dosing_orders').insert({
+    if (!startU) { setSavingOrder(false); showError('Ingresa la dosis inicial en unidades.'); return; }
+    const { error: orderErr } = await supabase.from('dosing_orders').insert({
       user_id: user.id, order_number: orderNum || null, medication: orderMed,
       concentration_mg_per_unit: startU && startM ? startM / startU : null,
       start_units: startU, start_mg: startM,
       increment_units: parseInt(orderIncUnits) || 0, increment_mg: parseFloat(orderIncMg) || 0,
       max_units: parseInt(orderMaxUnits) || null, max_mg: parseFloat(orderMaxMg) || null,
       max_weeks: parseInt(orderMaxWeeks) || 8, instructions: orderInstructions || null, is_current: true,
+      ordered_at: localDateStr(),
     });
+    if (orderErr) {
+      setSavingOrder(false);
+      showError(`No se pudo guardar la orden: ${orderErr.message}`);
+      return;
+    }
     setOrderNum(''); setOrderStartUnits(''); setOrderStartMg('');
     setOrderIncUnits(''); setOrderIncMg(''); setOrderMaxUnits('');
     setOrderMaxMg(''); setOrderInstructions('');
@@ -380,6 +413,12 @@ export default function TrackPage() {
           <Chip key={t.k} active={activeTab === t.k} onClick={() => setActiveTab(t.k)}>{t.l}</Chip>
         ))}
       </div>
+
+      {errorMsg && (
+        <div style={{ margin: '0 20px 12px', padding: '12px 16px', borderRadius: 14, background: `${HU.coral}14`, border: `1px solid ${HU.coral}40`, fontFamily: HU.sans, fontSize: 13, color: HU.coral, fontWeight: 600 }}>
+          {errorMsg}
+        </div>
+      )}
 
       {/* ═══════════ REGISTRO ═══════════ */}
       {activeTab === 'registro' && (
@@ -621,7 +660,7 @@ export default function TrackPage() {
                             <div onClick={() => setEditUnits(Math.min(100, editUnits + 1))} style={{ width: 36, height: 36, borderRadius: 18, background: HU.paper, border: `1px solid ${HU.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 18, fontWeight: 600, color: HU.ink, userSelect: 'none' }}>+</div>
                             <div style={{ fontFamily: HU.sans, fontSize: 12, color: HU.mute }}>units</div>
                           </div>
-                          {currentOrder && <div style={{ fontFamily: HU.mono, fontSize: 10, color: HU.mute, marginTop: 2, textAlign: 'center' }}>= {calcMgForUnits(currentOrder, editUnits)} mg</div>}
+<div style={{ fontFamily: HU.mono, fontSize: 10, color: HU.mute, marginTop: 2, textAlign: 'center' }}>= {calcMgForDose(d, editUnits)} mg</div>
                         </div>
                         <div style={{ marginBottom: 10 }}>
                           <div style={{ fontFamily: HU.sans, fontSize: 11, fontWeight: 600, color: HU.ink, marginBottom: 4, textTransform: 'uppercase', letterSpacing: .4 }}>Peso (lbs)</div>
@@ -707,7 +746,7 @@ export default function TrackPage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                       <div style={{ fontFamily: HU.sans, fontSize: 14, fontWeight: 600, color: HU.ink }}>{o.order_number ? `#${o.order_number}` : o.medication}</div>
-                      <div style={{ fontFamily: HU.mono, fontSize: 11, color: HU.mute }}>{o.start_units}u ({o.start_mg}mg) → máx {o.max_units}u · {new Date(o.ordered_at).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+                      <div style={{ fontFamily: HU.mono, fontSize: 11, color: HU.mute }}>{o.start_units}u ({o.start_mg}mg) → máx {o.max_units}u · {parseLocalDate(o.ordered_at).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
                     </div>
                     {o.is_current && <div style={{ padding: '3px 8px', borderRadius: 6, background: `${HU.leaf}22`, fontFamily: HU.mono, fontSize: 10, color: HU.leafDeep, fontWeight: 700 }}>ACTUAL</div>}
                   </div>

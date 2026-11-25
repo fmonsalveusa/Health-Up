@@ -5,14 +5,15 @@ import { createClient } from '@/lib/supabase';
 import { HU } from '@/lib/design';
 import { Icon, Btn, TabBar } from '@/components/ui';
 import { calculateTDEE, calculateTargetKcal, calculateMacros, kgToLbs, lbsToKg, cmToFtIn } from '@/lib/nutrition';
-import type { Profile, GLP1Med } from '@/lib/types';
+import { medLabel, type Profile, type GLP1Med } from '@/lib/types';
+import { localDateStr } from '@/lib/dates';
 
 const MED_OPTIONS: { label: string; value: GLP1Med }[] = [
   { label: 'Ozempic® (Semaglutida)', value: 'ozempic' },
   { label: 'Wegovy® (Semaglutida)', value: 'wegovy' },
   { label: 'Mounjaro® (Tirzepatida)', value: 'mounjaro' },
   { label: 'Saxenda® (Liraglutida)', value: 'saxenda' },
-  { label: 'Compounded Tirzepatide', value: 'mounjaro' },
+  { label: 'Compounded Tirzepatide', value: 'compounded_tirzepatide' },
   { label: 'Ninguno', value: 'none' },
 ];
 
@@ -20,6 +21,7 @@ const DOSE_OPTIONS: Record<string, string[]> = {
   ozempic: ['0.25 mg', '0.5 mg', '1.0 mg', '2.0 mg'],
   wegovy: ['0.25 mg', '0.5 mg', '1.0 mg', '1.7 mg', '2.4 mg'],
   mounjaro: ['2.5 mg', '5.0 mg', '7.5 mg', '10.0 mg', '12.5 mg', '15.0 mg'],
+  compounded_tirzepatide: ['2.5 mg', '5.0 mg', '7.5 mg', '10.0 mg', '12.5 mg', '15.0 mg'],
   saxenda: ['0.6 mg', '1.2 mg', '1.8 mg', '2.4 mg', '3.0 mg'],
 };
 
@@ -74,7 +76,7 @@ export default function ProfilePage() {
       if (lbs) {
         updates.current_weight = lbsToKg(lbs);
         // También registrar en weight_logs
-        await supabase.from('weight_logs').insert({ user_id: user.id, weight: lbsToKg(lbs) });
+        await supabase.from('weight_logs').insert({ user_id: user.id, weight: lbsToKg(lbs), logged_at: localDateStr() });
       }
     }
     if (editing === 'target') {
@@ -194,7 +196,7 @@ export default function ProfilePage() {
                 <div style={{ fontFamily: HU.sans, fontSize: 14, color: HU.ink }}>Medicamento</div>
                 <div style={{ fontFamily: HU.sans, fontSize: 11, color: HU.mute, marginTop: 1 }}>
                   {profile.glp1_med && profile.glp1_med !== 'none'
-                    ? `${profile.glp1_med} · ${profile.glp1_dose || 'sin dosis'}`
+                    ? `${medLabel(profile.glp1_med)} · ${profile.glp1_dose || 'sin dosis'}`
                     : 'Ninguno'}
                 </div>
               </div>
