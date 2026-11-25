@@ -84,6 +84,9 @@ export default function TrackPage() {
   const [orderVialUnits, setOrderVialUnits] = useState('');
   const [orderDevice, setOrderDevice] = useState<'syringe' | 'pen'>('syringe');
   const [orderPens, setOrderPens] = useState('4');
+  const [orderDate, setOrderDate] = useState(localDateStr());
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [confirmDeleteOrderId, setConfirmDeleteOrderId] = useState<string | null>(null);
   const [editingVial, setEditingVial] = useState(false);
   const [vialInput, setVialInput] = useState('');
 
@@ -240,57 +243,95 @@ export default function TrackPage() {
     setEditingId(null); setSavingEdit(false); loadData();
   }
 
-  async function saveNewOrder() {
+  function resetOrderForm() {
+    setEditingOrderId(null);
+    setOrderNum(''); setOrderMed('Compounded Tirzepatide'); setOrderDevice('syringe');
+    setOrderStartUnits(''); setOrderStartMg(''); setOrderIncUnits(''); setOrderIncMg('');
+    setOrderMaxUnits(''); setOrderMaxMg(''); setOrderMaxWeeks('8'); setOrderVialUnits('');
+    setOrderPens('4'); setOrderInstructions(''); setOrderDate(localDateStr());
+  }
+
+  /** Carga una orden existente en el formulario para editarla. */
+  function startEditOrder(o: DosingOrder) {
+    const pen = isPen(o);
+    setEditingOrderId(o.id);
+    setOrderNum(o.order_number || ''); setOrderMed(o.medication); setOrderDevice(pen ? 'pen' : 'syringe');
+    setOrderStartUnits(pen ? '' : String(o.start_units || ''));
+    setOrderStartMg(o.start_mg != null ? String(o.start_mg) : '');
+    setOrderIncUnits(o.increment_units ? String(o.increment_units) : '');
+    setOrderIncMg(o.increment_mg ? String(o.increment_mg) : '');
+    setOrderMaxUnits(o.max_units != null ? String(o.max_units) : '');
+    setOrderMaxMg(o.max_mg != null ? String(o.max_mg) : '');
+    setOrderMaxWeeks(String(o.max_weeks || 8));
+    setOrderVialUnits(!pen && o.vial_units ? String(o.vial_units) : '');
+    setOrderPens(pen && o.vial_units ? String(o.vial_units) : '4');
+    setOrderInstructions(o.instructions || '');
+    setOrderDate(o.ordered_at);
+    setActiveTab('orden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  /** Crea una orden nueva o guarda los cambios de la que se está editando. */
+  async function saveOrder() {
     if (!profile) return;
     setSavingOrder(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setSavingOrder(false); showError('Tu sesión expiró. Vuelve a iniciar sesión.'); return; }
     const startU = parseInt(orderStartUnits) || 0, startM = parseFloat(orderStartMg) || null;
+    const fail = (msg: string) => { setSavingOrder(false); showError(msg); };
 
+    let fields: Record<string, unknown>;
     if (orderDevice === 'pen') {
       // Pluma de una dosis: dosis fija en mg y cantidad de plumas en la caja
       const pens = parseInt(orderPens) || 0;
-      if (!startM) { setSavingOrder(false); showError('Ingresa la dosis de la pluma en mg.'); return; }
-      if (!pens) { setSavingOrder(false); showError('Ingresa cuántas plumas trae la caja.'); return; }
-      const { error: penErr } = await supabase.from('dosing_orders').insert({
-        user_id: user.id, order_number: orderNum || null, medication: orderMed, device: 'pen',
-        start_units: 0, start_mg: startM, increment_units: 0, increment_mg: 0,
-        max_units: null, max_mg: startM, max_weeks: pens, vial_units: pens,
-        instructions: orderInstructions || null, is_current: true, ordered_at: localDateStr(),
-      });
-      if (penErr) {
-        setSavingOrder(false);
-        showError(penErr.message.includes('device')
-          ? 'Falta correr supabase/005_pen_device.sql en Supabase para guardar plumas.'
-          : `No se pudo guardar la orden: ${penErr.message}`);
-        return;
-      }
-      setOrderNum(''); setOrderStartMg(''); setOrderInstructions(''); setOrderPens('4');
-      setSavingOrder(false); setActiveTab('registro'); loadData();
-      return;
+      if (!startM) return fail('Ingresa la dosis de la pluma en mg.');
+      if (!pens) return fail('Ingresa cuántas plumas trae la caja.');
+      fields = {
+        device: 'pen', start_units: 0, start_mg: startM, concentration_mg_per_unit: null,
+        increment_units: 0, increment_mg: 0, max_units: null, max_mg: startM,
+        max_weeks: pens, vial_units: pens,
+      };
+    } else {
+      if (!startU) return fail('Ingresa la dosis inicial en unidades.');
+      fields = {
+        device: 'syringe', start_units: startU, start_mg: startM,
+        concentration_mg_per_unit: startU && startM ? startM / startU : null,
+        increment_units: parseInt(orderIncUnits) || 0, increment_mg: parseFloat(orderIncMg) || 0,
+        max_units: parseInt(orderMaxUnits) || null, max_mg: parseFloat(orderMaxMg) || null,
+        max_weeks: parseInt(orderMaxWeeks) || 8, vial_units: parseInt(orderVialUnits) || null,
+      };
     }
-
-    if (!startU) { setSavingOrder(false); showError('Ingresa la dosis inicial en unidades.'); return; }
-    const { error: orderErr } = await supabase.from('dosing_orders').insert({
-      user_id: user.id, order_number: orderNum || null, medication: orderMed,
-      concentration_mg_per_unit: startU && startM ? startM / startU : null,
-      start_units: startU, start_mg: startM,
-      increment_units: parseInt(orderIncUnits) || 0, increment_mg: parseFloat(orderIncMg) || 0,
-      max_units: parseInt(orderMaxUnits) || null, max_mg: parseFloat(orderMaxMg) || null,
-      max_weeks: parseInt(orderMaxWeeks) || 8, instructions: orderInstructions || null, is_current: true,
-      ordered_at: localDateStr(),
-      // sólo se envía si se llenó, para no fallar si la migración 004 no se ha corrido
-      ...(parseInt(orderVialUnits) > 0 ? { vial_units: parseInt(orderVialUnits) } : {}),
+    Object.assign(fields, {
+      order_number: orderNum || null, medication: orderMed,
+      instructions: orderInstructions || null, ordered_at: orderDate || localDateStr(),
     });
-    if (orderErr) {
-      setSavingOrder(false);
-      showError(`No se pudo guardar la orden: ${orderErr.message}`);
-      return;
-    }
-    setOrderNum(''); setOrderStartUnits(''); setOrderStartMg('');
-    setOrderIncUnits(''); setOrderIncMg(''); setOrderMaxUnits('');
-    setOrderMaxMg(''); setOrderInstructions(''); setOrderVialUnits('');
+
+    const { error } = editingOrderId
+      ? await supabase.from('dosing_orders').update(fields).eq('id', editingOrderId)
+      : await supabase.from('dosing_orders').insert({ ...fields, user_id: user.id, is_current: true });
+    if (error) return fail(`No se pudo guardar la orden: ${error.message}`);
+
+    resetOrderForm();
     setSavingOrder(false); setActiveTab('registro'); loadData();
+  }
+
+  /** Borra una orden sin inyecciones registradas. */
+  async function deleteOrder(id: string) {
+    setConfirmDeleteOrderId(null);
+    const { error } = await supabase.from('dosing_orders').delete().eq('id', id);
+    if (error) { showError(`No se pudo borrar la orden: ${error.message}`); return; }
+    if (editingOrderId === id) resetOrderForm();
+    loadData();
+  }
+
+  /** Marca una orden como la actual (y desactiva las demás). */
+  async function makeOrderCurrent(id: string) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { error: e1 } = await supabase.from('dosing_orders').update({ is_current: false }).eq('user_id', user.id).neq('id', id);
+    const { error: e2 } = await supabase.from('dosing_orders').update({ is_current: true }).eq('id', id);
+    if (e1 || e2) { showError(`No se pudo cambiar la orden actual: ${(e1 || e2)!.message}`); return; }
+    loadData();
   }
 
   if (!profile) return (
@@ -373,6 +414,10 @@ export default function TrackPage() {
               <div style={{ fontFamily: HU.mono, fontSize: 11, color: HU.mute }}>
                 Orden {currentOrder.order_number ? `#${currentOrder.order_number}` : ''} · Semana {weekNum}
               </div>
+              <button type="button" onClick={() => startEditOrder(currentOrder)}
+                style={{ marginTop: 4, padding: 0, border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontFamily: HU.sans, fontSize: 12, fontWeight: 600, color: HU.primary }}>
+                <Icon name="settings" size={12} color={HU.primary} /> Editar orden
+              </button>
             </div>
             <div style={{ textAlign: 'right' }}>
               {penOrder ? (
@@ -754,8 +799,22 @@ export default function TrackPage() {
       {activeTab === 'orden' && (
         <div style={{ padding: '0 20px' }}>
           <div style={{ padding: 20, borderRadius: 22, background: HU.paper, border: `1px solid ${HU.line}` }}>
-            <div style={{ fontFamily: HU.display, fontSize: 20, fontWeight: 500, color: HU.ink, marginBottom: 16 }}>Nueva orden de producto</div>
-            <div style={{ marginBottom: 14 }}><div style={labelStyle}>Número de orden</div><input placeholder="Ej: 4566671" value={orderNum} onChange={e => setOrderNum(e.target.value)} style={inputStyle} /></div>
+            <div style={{ fontFamily: HU.display, fontSize: 20, fontWeight: 500, color: HU.ink, marginBottom: 16 }}>
+              {editingOrderId ? 'Editar orden' : 'Nueva orden de producto'}
+            </div>
+            {editingOrderId && (() => {
+              // Aviso si la orden ya tiene inyecciones: cambiar el tipo no las modifica
+              const n = doseLogs.filter(d => d.order_id === editingOrderId).length;
+              return n > 0 ? (
+                <div style={{ marginBottom: 14, padding: '10px 12px', borderRadius: 12, background: `${HU.sun}22`, fontFamily: HU.sans, fontSize: 12, color: HU.ink, lineHeight: 1.4 }}>
+                  Esta orden tiene {n} inyección{n === 1 ? '' : 'es'} registrada{n === 1 ? '' : 's'}. Si cambias el tipo o la dosis, las inyecciones ya registradas no cambian; corrígelas en Historial si hace falta.
+                </div>
+              ) : null;
+            })()}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+              <div><div style={labelStyle}>Número de orden</div><input placeholder="Ej: 4566671" value={orderNum} onChange={e => setOrderNum(e.target.value)} style={inputStyle} /></div>
+              <div><div style={labelStyle}>Fecha de inicio</div><input type="date" value={orderDate} onChange={e => setOrderDate(e.target.value)} style={inputStyle} /></div>
+            </div>
             <div style={{ marginBottom: 14 }}><div style={labelStyle}>Medicamento</div><input placeholder={orderDevice === 'pen' ? 'Zepbound' : 'Compounded Tirzepatide'} value={orderMed} onChange={e => setOrderMed(e.target.value)} style={inputStyle} /></div>
 
             {/* Tipo de dispositivo */}
@@ -816,13 +875,23 @@ export default function TrackPage() {
               <textarea placeholder={orderDevice === 'pen' ? 'Inject 1 pen subcutaneously once a week...' : 'Inject 82 Units (14.47mg) subcutaneously once a week...'} value={orderInstructions} onChange={e => setOrderInstructions(e.target.value)} rows={4}
                 style={{ ...inputStyle, height: 'auto', padding: '12px 14px', resize: 'none' as const }} />
             </div>
-            <Btn variant="primary" size="lg" icon="plus" loading={savingOrder} onClick={saveNewOrder} style={{ width: '100%' }}>Guardar orden</Btn>
+            {editingOrderId ? (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Btn variant="secondary" size="lg" onClick={() => { resetOrderForm(); setActiveTab('registro'); }} style={{ flex: 1 }}>Cancelar</Btn>
+                <Btn variant="primary" size="lg" icon="check" loading={savingOrder} onClick={saveOrder} style={{ flex: 1 }}>Guardar cambios</Btn>
+              </div>
+            ) : (
+              <Btn variant="primary" size="lg" icon="plus" loading={savingOrder} onClick={saveOrder} style={{ width: '100%' }}>Guardar orden</Btn>
+            )}
           </div>
           {allOrders.length > 0 && (
             <div style={{ marginTop: 16 }}>
               <div style={{ fontFamily: HU.display, fontSize: 18, fontWeight: 500, color: HU.ink, marginBottom: 10 }}>Órdenes</div>
-              {allOrders.map(o => (
-                <div key={o.id} style={{ padding: 14, borderRadius: 14, background: HU.paper, border: `1px solid ${o.is_current ? HU.leaf : HU.lineSoft}`, marginBottom: 8 }}>
+              {allOrders.map(o => {
+                const doseCount = doseLogs.filter(d => d.order_id === o.id).length;
+                const linkBtn: React.CSSProperties = { padding: 0, border: 'none', background: 'none', cursor: 'pointer', fontFamily: HU.sans, fontSize: 12, fontWeight: 600 };
+                return (
+                <div key={o.id} style={{ padding: 14, borderRadius: 14, background: HU.paper, border: `1px solid ${o.id === editingOrderId ? HU.primary : o.is_current ? HU.leaf : HU.lineSoft}`, marginBottom: 8 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                       <div style={{ fontFamily: HU.sans, fontSize: 14, fontWeight: 600, color: HU.ink }}>{o.order_number ? `#${o.order_number}` : o.medication}</div>
@@ -831,8 +900,28 @@ export default function TrackPage() {
                     {o.is_current && <div style={{ padding: '3px 8px', borderRadius: 6, background: `${HU.leaf}22`, fontFamily: HU.mono, fontSize: 10, color: HU.leafDeep, fontWeight: 700 }}>ACTUAL</div>}
                   </div>
                   {o.instructions && <div style={{ marginTop: 6, fontFamily: HU.sans, fontSize: 11, color: HU.mute, lineHeight: 1.4 }}>{o.instructions}</div>}
+
+                  {/* Acciones */}
+                  {confirmDeleteOrderId === o.id ? (
+                    <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <div style={{ fontFamily: HU.sans, fontSize: 12, color: HU.ink }}>¿Borrar esta orden?</div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <Btn variant="ghost" size="sm" onClick={() => setConfirmDeleteOrderId(null)}>Cancelar</Btn>
+                        <Btn variant="primary" size="sm" style={{ background: HU.coral }} onClick={() => deleteOrder(o.id)}>Borrar</Btn>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ marginTop: 10, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <button type="button" onClick={() => startEditOrder(o)} style={{ ...linkBtn, color: HU.primary }}>Editar</button>
+                      {!o.is_current && <button type="button" onClick={() => makeOrderCurrent(o.id)} style={{ ...linkBtn, color: HU.leafDeep }}>Marcar como actual</button>}
+                      {doseCount === 0
+                        ? <button type="button" onClick={() => setConfirmDeleteOrderId(o.id)} style={{ ...linkBtn, color: HU.coral }}>Borrar</button>
+                        : <span style={{ fontFamily: HU.sans, fontSize: 11, color: HU.dim }}>{doseCount} inyección{doseCount === 1 ? '' : 'es'}</span>}
+                    </div>
+                  )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
